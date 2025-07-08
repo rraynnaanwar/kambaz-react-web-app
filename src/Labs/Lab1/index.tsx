@@ -300,11 +300,9 @@ export default function Lab1() {
       to get dummy text
       <br />
       <h4>Anchor tag</h4>
-      Please
-      <a href="https://www.lipsum.com" id="wd-github">
-        click here
+      <a href="https://github.com/rraynnaanwar/kambaz-react-web-app" id="wd-github">
+        Github
       </a>
-      to get dummy text
       <br />
     </div>
   );
