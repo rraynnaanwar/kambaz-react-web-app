@@ -1,40 +1,65 @@
+import { Form, Button } from "react-bootstrap";
 import { Link } from "react-router-dom";
+
 export default function Profile() {
   return (
     <div id="wd-profile-screen">
-      <h3>Profile</h3>
-      <input
-        defaultValue="alice"
+      <h1>Profile</h1>
+
+      <Form.Control
+        id="wd-username"
         placeholder="username"
-        className="wd-username"
+        className="wd-username mb-3"
+        defaultValue="alice"
       />
-      <br />
-      <input
-        defaultValue="123"
-        placeholder="password"
+
+      <Form.Control
+        id="wd-password"
         type="password"
-        className="wd-password"
+        placeholder="password"
+        className="wd-password mb-3"
+        defaultValue="123"
       />
-      <br />
-      <input defaultValue="Alice" placeholder="First Name" id="wd-firstname" />
-      <br />
-      <input
-        defaultValue="Wonderland"
-        placeholder="Last Name"
+
+      <Form.Control
+        id="wd-firstname"
+        placeholder="First Name"
+        className="mb-3"
+        defaultValue="Alice"
+      />
+
+      <Form.Control
         id="wd-lastname"
+        placeholder="Last Name"
+        className="mb-3"
+        defaultValue="Wonderland"
       />
-      <br />
-      <input defaultValue="2000-01-01" type="date" id="wd-dob" />
-      <br />
-      <input defaultValue="alice@wonderland" type="email" id="wd-email" />
-      <br />
-      <select defaultValue="FACULTY" id="wd-role">
-        <option value="USER">User</option> <option value="ADMIN">Admin</option>
-        <option value="FACULTY">Faculty</option>{" "}
+
+      <Form.Control
+        id="wd-dob"
+        type="date"
+        className="mb-3"
+        defaultValue="2000-01-01"
+      />
+
+      <Form.Control
+        id="wd-email"
+        type="email"
+        placeholder="Email"
+        className="mb-3"
+        defaultValue="alice@wonderland"
+      />
+
+      <Form.Select id="wd-role" className="mb-3" defaultValue="FACULTY">
+        <option value="USER">User</option>
+        <option value="ADMIN">Admin</option>
+        <option value="FACULTY">Faculty</option>
         <option value="STUDENT">Student</option>
-      </select>
-      <br />
-      <Link to="/Kambaz/Account/Signin">Sign out</Link>
+      </Form.Select>
+
+      <Link to="/Kambaz/Account/Signin" className="btn btn-primary">
+        Sign out
+      </Link>
     </div>
   );
 }

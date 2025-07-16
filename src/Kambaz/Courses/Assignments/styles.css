@@ -1,0 +1,12 @@
+.link-no-style {
+  color: black;
+  text-decoration: none;
+}
+
+.link-no-style:hover,
+.link-no-style:focus,
+.link-no-style:active {
+  color: black;        /* keep black on hover/focus/active */
+  text-decoration: none; /* no underline on hover/focus/active */
+  cursor: pointer;     /* show pointer cursor */
+}
