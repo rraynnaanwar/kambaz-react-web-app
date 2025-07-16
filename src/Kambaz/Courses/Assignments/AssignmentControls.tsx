@@ -1,5 +1,5 @@
 import { FaPlus } from "react-icons/fa6";
-import { Button, Dropdown } from "react-bootstrap";
+import { Button } from "react-bootstrap";
 import "../../styles.css"
 export default function ModulesControls() {
  return (
