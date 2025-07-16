@@ -38,7 +38,7 @@ export default function KambazNavigation() {
           <AiOutlineDashboard className="fs-1 text-danger" /><br />
           Dashboard
         </ListGroup.Item>
-        <ListGroup.Item to="/Kambaz/Courses" as={NavLink}
+        <ListGroup.Item to="/Kambaz/Courses/123/Home" as={NavLink}
           className="text-white bg-black text-center border-0">
           <LiaBookSolid className="fs-1 text-danger" /><br />
           Courses
