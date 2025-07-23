@@ -1,7 +1,8 @@
 import { Form, Button } from "react-bootstrap";
+import { useParams } from "react-router";
+import * as db from "../../Database";
 
 export default function AssignmentEditor() {
-  // Common style for all label+input groups
   const formGroupStyle = {
     display: "flex",
     alignItems: "center",
@@ -9,24 +10,44 @@ export default function AssignmentEditor() {
   };
 
   const labelStyle = {
-    minWidth: "140px", // fixed label width for vertical alignment
+    minWidth: "140px",
     marginBottom: 0,
     fontWeight: "500",
   };
 
   const inputStyle = {
-    flex: 1, // take remaining space
+    flex: 1,
   };
+
+  const { cid, aid } = useParams();
+  const currAssignment = db.assignments.find(
+    (assignment) => assignment.course === cid && assignment._id === aid
+  );
+
+  const formatDateForInput = (dateString: string | number | Date) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toISOString().slice(0, 16);
+  };
+
+  if (!currAssignment) {
+    return (
+      <div id="wd-assignments-editor" className="p-4">
+        <h6>Assignment Not Found</h6>
+        <p>The assignment you're looking for could not be found.</p>
+      </div>
+    );
+  }
 
   return (
     <div id="wd-assignments-editor" className="p-4">
       <h6>Assignment Name</h6>
       <Form>
         <Form.Group controlId="wd-name" style={formGroupStyle}>
-          <Form.Label style={labelStyle}>Name</Form.Label>
+          <Form.Label style={labelStyle}>{"Name: "}</Form.Label>
           <Form.Control
             type="text"
-            defaultValue="A1 - ENV + HTML"
+            defaultValue={currAssignment.title}
             style={inputStyle}
           />
         </Form.Group>
@@ -38,17 +59,11 @@ export default function AssignmentEditor() {
           <Form.Label>Description</Form.Label>
           <Form.Control
             as="textarea"
-            rows={6} // fixed height: 6 rows tall
-            style={{ width: "100%", resize: "vertical" }} // allow manual vertical resizing
-            defaultValue={`The assignment is available online. Submit a link to the landing page of your Web application running on Netlify.
-
-The landing page should include the following:
-- Your full name and section
-- Links to each of the lab assignments
-- Link to the Kanbas application
-- Links to all relevant source code repositories
-
-The Kanbas application should include a link to navigate back to the landing page.`}
+            rows={6}
+            style={{ width: "100%", resize: "vertical" }}
+            defaultValue={
+              currAssignment.description || "No description available."
+            }
           />
         </Form.Group>
 
@@ -56,7 +71,7 @@ The Kanbas application should include a link to navigate back to the landing pag
           <Form.Label style={labelStyle}>Points</Form.Label>
           <Form.Control
             type="number"
-            defaultValue={100}
+            defaultValue={currAssignment.points || 100}
             style={{ ...inputStyle, maxWidth: "150px" }}
           />
         </Form.Group>
@@ -201,7 +216,7 @@ The Kanbas application should include a link to navigate back to the landing pag
                 >
                   <Form.Control
                     type="datetime-local"
-                    defaultValue="2024-05-13T23:59"
+                    defaultValue={formatDateForInput(currAssignment.dueDate)}
                     style={{ flex: 1 }}
                   />
                   <span style={{ fontSize: "1.2rem", color: "#6c757d" }}>
@@ -232,7 +247,9 @@ The Kanbas application should include a link to navigate back to the landing pag
                   >
                     <Form.Control
                       type="datetime-local"
-                      defaultValue="2024-05-06T12:00"
+                      defaultValue={formatDateForInput(
+                        currAssignment.availableDate
+                      )}
                       style={{ flex: 1 }}
                     />
                     <span style={{ fontSize: "1.2rem", color: "#6c757d" }}>
@@ -256,7 +273,7 @@ The Kanbas application should include a link to navigate back to the landing pag
                   >
                     <Form.Control
                       type="datetime-local"
-                      defaultValue="2024-05-20T23:59"
+                      defaultValue={formatDateForInput(currAssignment.dueDate)}
                       style={{ flex: 1 }}
                     />
                     <span style={{ fontSize: "1.2rem", color: "#6c757d" }}>
