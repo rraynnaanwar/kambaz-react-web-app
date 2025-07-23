@@ -1,5 +1,5 @@
 import CourseNavigation from "./Navigation";
-import { Route, Routes, Navigate, useParams, useLocation } from "react-router";
+import { Route, Routes, useParams, useLocation } from "react-router";
 import Modules from "./Modules";
 import Home from "./Home";
 import Assignments from "./Assignments";

@@ -1,10 +1,8 @@
 import { NavLink, useParams } from "react-router-dom";
 import "../styles.css";
-import { courses } from "../Database";
 
 export default function CourseNavigation() {
   const { cid } = useParams();
-  const course = courses.find((course) => course._id === cid);
   
   const links = [
     "Home",
