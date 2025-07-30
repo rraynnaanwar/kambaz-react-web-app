@@ -1,300 +1,246 @@
-import { Form, Button } from "react-bootstrap";
-import { useParams } from "react-router";
-import * as db from "../../Database";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { FormControl, Form, Button, Container, Row, Col } from "react-bootstrap";
+import { addAssignment, updateAssignment } from "./reducer";
 
 export default function AssignmentEditor() {
-  const formGroupStyle = {
-    display: "flex",
-    alignItems: "center",
-    marginBottom: "1rem",
-  };
-
-  const labelStyle = {
-    minWidth: "140px",
-    marginBottom: 0,
-    fontWeight: "500",
-  };
-
-  const inputStyle = {
-    flex: 1,
-  };
-
   const { cid, aid } = useParams();
-  const currAssignment = db.assignments.find(
-    (assignment) => assignment.course === cid && assignment._id === aid
-  );
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  
+  const { assignments } = useSelector((state: any) => state.assignmentsReducer);
+  
+  const [assignment, setAssignment] = useState({
+    _id: "",
+    title: "",
+    course: cid || "",
+    description: "",
+    points: 100,
+    dueDate: "",
+    availableDate: "",
+    availableUntilDate: "",
+  });
 
-  const formatDateForInput = (dateString: string | number | Date) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toISOString().slice(0, 16);
+  const isEditing = aid !== "new";
+
+  useEffect(() => {
+    if (isEditing) {
+      const existingAssignment = assignments.find((a: any) => a._id === aid);
+      if (existingAssignment) {
+        setAssignment({
+          ...existingAssignment,
+          availableUntilDate: existingAssignment.availableUntilDate || "",
+        });
+      }
+    } else {
+      const now = new Date();
+      const availableDate = new Date(now);
+      const dueDate = new Date(now);
+      dueDate.setDate(dueDate.getDate() + 7);
+      const availableUntilDate = new Date(dueDate);
+      availableUntilDate.setDate(availableUntilDate.getDate() + 1);
+
+      setAssignment(prev => ({
+        ...prev,
+        availableDate: availableDate.toISOString().slice(0, 16),
+        dueDate: dueDate.toISOString().slice(0, 16),
+        availableUntilDate: availableUntilDate.toISOString().slice(0, 16),
+      }));
+    }
+  }, [aid, assignments, isEditing]);
+
+  const handleSave = () => {
+    if (isEditing) {
+      dispatch(updateAssignment(assignment));
+    } else {
+      dispatch(addAssignment({ ...assignment, course: cid }));
+    }
+    navigate(`/Kambaz/Courses/${cid}/Assignments`);
   };
 
-  if (!currAssignment) {
-    return (
-      <div id="wd-assignments-editor" className="p-4">
-        <h6>Assignment Not Found</h6>
-        <p>The assignment you're looking for could not be found.</p>
-      </div>
-    );
-  }
+  const handleCancel = () => {
+    navigate(`/Kambaz/Courses/${cid}/Assignments`);
+  };
+
+  const handleInputChange = (field: string, value: any) => {
+    setAssignment(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   return (
-    <div id="wd-assignments-editor" className="p-4">
-      <h6>Assignment Name</h6>
-      <Form>
-        <Form.Group controlId="wd-name" style={formGroupStyle}>
-          <Form.Label style={labelStyle}>{"Name: "}</Form.Label>
-          <Form.Control
-            type="text"
-            defaultValue={currAssignment.title}
-            style={inputStyle}
-          />
-        </Form.Group>
-
-        <Form.Group
-          controlId="wd-description"
-          style={{ marginBottom: "1.5rem" }}
-        >
-          <Form.Label>Description</Form.Label>
-          <Form.Control
-            as="textarea"
-            rows={6}
-            style={{ width: "100%", resize: "vertical" }}
-            defaultValue={
-              currAssignment.description || "No description available."
-            }
-          />
-        </Form.Group>
-
-        <Form.Group controlId="wd-points" style={formGroupStyle}>
-          <Form.Label style={labelStyle}>Points</Form.Label>
-          <Form.Control
-            type="number"
-            defaultValue={currAssignment.points || 100}
-            style={{ ...inputStyle, maxWidth: "150px" }}
-          />
-        </Form.Group>
-
-        <Form.Group controlId="wd-group" style={formGroupStyle}>
-          <Form.Label style={labelStyle}>Assignment Group</Form.Label>
-          <Form.Select defaultValue="Assignments" style={inputStyle}>
-            <option value="Quiz">QUIZ</option>
-            <option value="Assignments">ASSIGNMENTS</option>
-          </Form.Select>
-        </Form.Group>
-
-        <Form.Group controlId="wd-display-grade-as" style={formGroupStyle}>
-          <Form.Label style={labelStyle}>Display Grade as</Form.Label>
-          <Form.Select defaultValue="Percentage" style={inputStyle}>
-            <option value="Percentage">Percentage</option>
-          </Form.Select>
-        </Form.Group>
-
-        <Form.Group controlId="wd-submission-type" style={formGroupStyle}>
-          <Form.Label style={labelStyle}>Submission Type</Form.Label>
-          <Form.Select defaultValue="Online" style={inputStyle}>
-            <option value="Online">Online</option>
-          </Form.Select>
-        </Form.Group>
-
-        <div style={{ display: "flex", marginBottom: "1.5rem" }}>
-          <div style={{ minWidth: "140px" }}></div>
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                border: "1px solid #dee2e6",
-                borderRadius: "0.375rem",
-                padding: "1rem",
-                backgroundColor: "#ffffff",
-              }}
-            >
-              <Form.Label
-                style={{
-                  fontWeight: "500",
-                  marginBottom: "1rem",
-                  display: "block",
-                }}
+    <Container className="mt-4">
+      <Row>
+        <Col md={8} className="mx-auto">
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h2>{isEditing ? "Edit Assignment" : "New Assignment"}</h2>
+            <div>
+              <Button 
+                variant="success" 
+                onClick={handleSave}
+                className="me-2"
+                disabled={!assignment.title.trim()}
               >
-                Online Entry Options
-              </Form.Label>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.5rem",
-                }}
-              >
-                <Form.Check
-                  type="checkbox"
-                  id="wd-text-entry"
-                  label="Text Entry"
-                />
-                <Form.Check
-                  type="checkbox"
-                  id="wd-website-url"
-                  label="Website URL"
-                  defaultChecked
-                />
-                <Form.Check
-                  type="checkbox"
-                  id="wd-media-recordings"
-                  label="Media Recordings"
-                />
-                <Form.Check
-                  type="checkbox"
-                  id="wd-student-annotation"
-                  label="Student Annotations"
-                />
-                <Form.Check
-                  type="checkbox"
-                  id="wd-file-upload"
-                  label="File Uploads"
-                />
-              </div>
+                Save
+              </Button>
+              <Button variant="secondary" onClick={handleCancel}>
+                Cancel
+              </Button>
             </div>
           </div>
-        </div>
 
-        <div style={{ display: "flex", marginBottom: "1.5rem" }}>
-          <Form.Label
-            style={{ minWidth: "140px", marginBottom: 0, fontWeight: "500" }}
-          >
-            Assign
-          </Form.Label>
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                border: "1px solid #dee2e6",
-                borderRadius: "0.375rem",
-                padding: "1rem",
-                backgroundColor: "#ffffff",
-              }}
-            >
-              <Form.Group
-                controlId="wd-assign-to"
-                style={{ marginBottom: "1rem" }}
-              >
-                <Form.Label
-                  style={{ fontWeight: "500", marginBottom: "0.5rem" }}
-                >
-                  Assign to
-                </Form.Label>
-                <div
-                  style={{
-                    border: "1px solid #dee2e6",
-                    borderRadius: "0.375rem",
-                    padding: "0.375rem 0.75rem",
-                    backgroundColor: "#f8f9fa",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span>Everyone</span>
-                  <span style={{ cursor: "pointer", fontWeight: "bold" }}>
-                    ×
-                  </span>
-                </div>
-              </Form.Group>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Assignment Name</Form.Label>
+              <FormControl
+                type="text"
+                value={assignment.title}
+                onChange={(e) => handleInputChange("title", e.target.value)}
+                placeholder="Enter assignment name"
+                required
+              />
+            </Form.Group>
 
-              <Form.Group
-                controlId="wd-due-date"
-                style={{ marginBottom: "1rem" }}
-              >
-                <Form.Label
-                  style={{ fontWeight: "500", marginBottom: "0.5rem" }}
-                >
-                  Due
-                </Form.Label>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                  }}
-                >
-                  <Form.Control
-                    type="datetime-local"
-                    defaultValue={formatDateForInput(currAssignment.dueDate)}
-                    style={{ flex: 1 }}
+            <Form.Group className="mb-3">
+              <Form.Label>Description</Form.Label>
+              <FormControl
+                as="textarea"
+                rows={5}
+                value={assignment.description}
+                onChange={(e) => handleInputChange("description", e.target.value)}
+                placeholder="Enter assignment description"
+              />
+            </Form.Group>
+
+            <Row>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Points</Form.Label>
+                  <FormControl
+                    type="number"
+                    value={assignment.points}
+                    onChange={(e) => handleInputChange("points", parseInt(e.target.value) || 0)}
+                    min="0"
                   />
-                  <span style={{ fontSize: "1.2rem", color: "#6c757d" }}>
-                    📅
-                  </span>
-                </div>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Available From</Form.Label>
+                  <FormControl
+                    type="datetime-local"
+                    value={assignment.availableDate}
+                    onChange={(e) => handleInputChange("availableDate", e.target.value)}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Due Date</Form.Label>
+                  <FormControl
+                    type="datetime-local"
+                    value={assignment.dueDate}
+                    onChange={(e) => handleInputChange("dueDate", e.target.value)}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Available Until</Form.Label>
+                  <FormControl
+                    type="datetime-local"
+                    value={assignment.availableUntilDate}
+                    onChange={(e) => handleInputChange("availableUntilDate", e.target.value)}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <div className="border rounded p-3 mb-4">
+              <h5>Assignment Settings</h5>
+              
+              <Form.Group className="mb-3">
+                <Form.Label>Submission Type</Form.Label>
+                <Form.Select>
+                  <option>Online</option>
+                  <option>Paper</option>
+                  <option>External Tool</option>
+                </Form.Select>
               </Form.Group>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "1rem",
-                }}
-              >
-                <Form.Group controlId="wd-available-dates">
-                  <Form.Label
-                    style={{ fontWeight: "500", marginBottom: "0.5rem" }}
-                  >
-                    Available from
-                  </Form.Label>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}
-                  >
-                    <Form.Control
-                      type="datetime-local"
-                      defaultValue={formatDateForInput(
-                        currAssignment.availableDate
-                      )}
-                      style={{ flex: 1 }}
-                    />
-                    <span style={{ fontSize: "1.2rem", color: "#6c757d" }}>
-                      📅
-                    </span>
-                  </div>
-                </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Assignment Group</Form.Label>
+                <Form.Select>
+                  <option>Assignments</option>
+                  <option>Quizzes</option>
+                  <option>Exams</option>
+                  <option>Project</option>
+                </Form.Select>
+              </Form.Group>
 
-                <Form.Group controlId="wd-available-until">
-                  <Form.Label
-                    style={{ fontWeight: "500", marginBottom: "0.5rem" }}
-                  >
-                    Until
-                  </Form.Label>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}
-                  >
-                    <Form.Control
-                      type="datetime-local"
-                      defaultValue={formatDateForInput(currAssignment.dueDate)}
-                      style={{ flex: 1 }}
-                    />
-                    <span style={{ fontSize: "1.2rem", color: "#6c757d" }}>
-                      📅
-                    </span>
-                  </div>
-                </Form.Group>
-              </div>
+              <Form.Group className="mb-3">
+                <Form.Label>Display Grade As</Form.Label>
+                <Form.Select>
+                  <option>Percentage</option>
+                  <option>Points</option>
+                  <option>Letter Grade</option>
+                  <option>Complete/Incomplete</option>
+                </Form.Select>
+              </Form.Group>
             </div>
-          </div>
-        </div>
 
-        <div className="d-flex justify-content-end">
-          <Button variant="secondary" className="me-2">
-            Cancel
-          </Button>
-          <Button variant="danger" type="submit">
-            Save
-          </Button>
-        </div>
-      </Form>
-    </div>
+            <div className="border rounded p-3 mb-4">
+              <h5>Online Entry Options</h5>
+              <Form.Check 
+                type="checkbox" 
+                label="Text Entry" 
+                className="mb-2"
+              />
+              <Form.Check 
+                type="checkbox" 
+                label="Website URL" 
+                className="mb-2"
+              />
+              <Form.Check 
+                type="checkbox" 
+                label="Media Recordings" 
+                className="mb-2"
+              />
+              <Form.Check 
+                type="checkbox" 
+                label="Student Annotation" 
+                className="mb-2"
+              />
+              <Form.Check 
+                type="checkbox" 
+                label="File Uploads" 
+                className="mb-2"
+              />
+            </div>
+
+            <div className="d-flex justify-content-end gap-2 mt-4">
+              <Button variant="secondary" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button 
+                variant="success" 
+                onClick={handleSave}
+                disabled={!assignment.title.trim()}
+              >
+                Save
+              </Button>
+            </div>
+          </Form>
+        </Col>
+      </Row>
+    </Container>
   );
 }

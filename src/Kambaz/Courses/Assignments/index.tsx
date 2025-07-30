@@ -1,16 +1,48 @@
 import { FaSearch } from "react-icons/fa";
-import AssignmentControls from "./AssignmentControls";
+import ModulesControls from "./AssignmentControls";
 import { FormControl, InputGroup, ListGroup } from "react-bootstrap";
 import { BsGripVertical } from "react-icons/bs";
 import AssignmentControlButtons from "./AssignmentControlButtons";
 import LessonControlButtons from "../Modules/LessonControlButtons";
 import { FaRegFileAlt } from "react-icons/fa";
-import { Link, useParams } from "react-router-dom";
-import * as db from "../../Database";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { deleteAssignment } from "./reducer";
 
 export default function Assignments() {
   const { cid } = useParams();
-  const courseAssignments = db.assignments.filter(assignment => assignment.course === cid);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  
+  const { assignments } = useSelector((state: any) => state.assignmentsReducer);
+  const { currentUser } = useSelector((state: any) => state.accountReducer);
+  const isFaculty = currentUser?.role === "FACULTY";
+
+  const courseAssignments = assignments.filter(
+    (assignment: any) => assignment.course === cid
+  );
+
+  const handleDeleteAssignment = (assignmentId: string) => {
+    if (window.confirm("Are you sure you want to delete this assignment?")) {
+      dispatch(deleteAssignment(assignmentId));
+    }
+  };
+
+  const handleEditAssignment = (assignmentId: string) => {
+    navigate(`/Kambaz/Courses/${cid}/Assignments/${assignmentId}`);
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "No due date";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
   return (
     <div id="wd-assignments" className="p-3">
@@ -21,9 +53,8 @@ export default function Assignments() {
           </InputGroup.Text>
           <FormControl placeholder="Search..." id="wd-search-assignment" />
         </InputGroup>
-
         <div className="ms-auto">
-          <AssignmentControls />
+          <ModulesControls />
         </div>
       </div>
 
@@ -32,42 +63,67 @@ export default function Assignments() {
           <div className="wd-title p-3 ps-2 bg-secondary d-flex align-items-center">
             <BsGripVertical className="me-2 fs-3" />
             <span className="me-auto">Assignments</span>
-            <AssignmentControlButtons />
+            {isFaculty && <AssignmentControlButtons />}
           </div>
 
           <ListGroup className="wd-lessons rounded-0">
-            {courseAssignments.map((assignment) => (
-              <ListGroup.Item key={assignment._id} className="wd-lesson p-3 ps-1">
-                <div className="d-flex">
-                  <div className="me-2 d-flex align-items-start">
-                    <BsGripVertical className="fs-3" />
-                  </div>
-
-                  <div className="flex-grow-1">
-                    <div className="d-flex align-items-center">
-                      <FaRegFileAlt className="me-2 text-success" />
-                      <span className="fw-bold me-auto">
-                        <Link
-                          to={`/Kambaz/Courses/${cid}/Assignments/${assignment._id}`}
-                          style={{ textDecoration: "none", color: "inherit" }}
-                        >
-                          {assignment.title}
-                        </Link>
-                      </span>
-                      <LessonControlButtons />
-                    </div>
-                    <div className="mt-1 text-muted small">
-                      Multiple Modules | <strong>Not available until</strong> May
-                      6 at 12:00am
-                    </div>
-                    <div className="text-muted small">
-                      Due May 13 at 11:59pm | 100 pts
-                    </div>
-                  </div>
-                </div>
+            {courseAssignments.length === 0 ? (
+              <ListGroup.Item className="text-center p-4 text-muted">
+                No assignments found for this course.
+                {isFaculty && " Click the + Assignment button to create one."}
               </ListGroup.Item>
-            ))}
-            
+            ) : (
+              courseAssignments.map((assignmentItem: any) => (
+                <ListGroup.Item key={assignmentItem._id} className="wd-lesson p-3 ps-1">
+                  <div className="d-flex">
+                    <div className="me-2 d-flex align-items-start">
+                      <BsGripVertical className="fs-3" />
+                    </div>
+
+                    <div className="flex-grow-1">
+                      <div className="d-flex align-items-center">
+                        <FaRegFileAlt className="me-2 text-success" />
+                        <span className="fw-bold me-auto">
+                          <Link
+                            to={`/Kambaz/Courses/${cid}/Assignments/${assignmentItem._id}`}
+                            style={{ textDecoration: "none", color: "inherit" }}
+                          >
+                            {assignmentItem.title}
+                          </Link>
+                        </span>
+                        {isFaculty && (
+                          <div className="d-flex gap-2">
+                            <button
+                              className="btn btn-sm btn-warning"
+                              onClick={() => handleEditAssignment(assignmentItem._id)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => handleDeleteAssignment(assignmentItem._id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                        <LessonControlButtons />
+                      </div>
+                      <div className="mt-1 text-muted small">
+                        Multiple Modules | <strong>Available from</strong>{" "}
+                        {formatDate(assignmentItem.availableDate)}
+                        {assignmentItem.availableUntilDate && (
+                          <> | <strong>Until</strong> {formatDate(assignmentItem.availableUntilDate)}</>
+                        )}
+                      </div>
+                      <div className="text-muted small">
+                        Due {formatDate(assignmentItem.dueDate)} | {assignmentItem.points} pts
+                      </div>
+                    </div>
+                  </div>
+                </ListGroup.Item>
+              ))
+            )}
           </ListGroup>
         </ListGroup.Item>
       </ListGroup>
