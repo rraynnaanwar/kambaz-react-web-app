@@ -1,32 +1,123 @@
+import { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 import { Button, Card, Col, Row, FormControl } from "react-bootstrap";
 import { 
   addCourse, 
-  deleteCourse, 
-  updateCourse, 
+  deleteCourse as deleteReduxCourse, 
+  updateCourse as updateReduxCourse, 
   setCurrentCourse,
   toggleShowAllCourses,
   enrollInCourse,
   unenrollFromCourse,
+  setEnrollments,
   type Course 
 } from "./Courses/reducer";
+import * as enrollmentClient from "./client";
 
-export default function Dashboard() {
+interface DashboardProps {
+  addNewCourse?: (course: any) => Promise<any>;
+  deleteCourse?: (courseId: string) => Promise<void>;
+  updateCourse?: (course: any) => Promise<any>;
+  courses?: any[];
+}
+
+export default function Dashboard({ 
+  addNewCourse: addNewCourseProp, 
+  deleteCourse: deleteCourseProp,
+  updateCourse: updateCourseProp,
+  courses: coursesProp 
+}: DashboardProps) {
   const { currentUser } = useSelector((state: any) => state.accountReducer);
-  const { courses, currentCourse, enrollments, showAllCourses } = useSelector((state: any) => state.courseReducer);
+  const { courses: reduxCourses, currentCourse, enrollments, showAllCourses } = useSelector((state: any) => state.courseReducer);
   const dispatch = useDispatch();
 
-  const addNewCourse = () => {
-    dispatch(addCourse({}));
+  const courses = coursesProp || reduxCourses;
+
+  useEffect(() => {
+    const fetchEnrollments = async () => {
+      if (currentUser?._id) {
+        try {
+          const userEnrollments = await enrollmentClient.findEnrollmentsForUser(currentUser._id);
+          dispatch(setEnrollments(userEnrollments));
+        } catch (error) {
+          console.error("Error fetching enrollments:", error);
+        }
+      }
+    };
+    
+    fetchEnrollments();
+  }, [currentUser?._id, dispatch]);
+
+  const addNewCourse = async () => {
+    if (addNewCourseProp) {
+      try {
+        await addNewCourseProp(currentCourse);
+        dispatch(setCurrentCourse({ 
+          _id: "",
+          name: "", 
+          description: "",
+          number: "",
+          startDate: "",
+          endDate: "",
+        }));
+      } catch (error) {
+        console.error("Failed to add course:", error);
+        alert("Failed to add course. Please try again.");
+      }
+    } else {
+      dispatch(addCourse({}));
+    }
   };
 
-  const deleteCourseHandler = (courseId: string) => {
-    dispatch(deleteCourse(courseId));
+  const deleteCourseHandler = async (courseId: string) => {
+    if (deleteCourseProp) {
+      try {
+        const confirmDelete = window.confirm("Are you sure you want to delete this course? This action cannot be undone.");
+        if (confirmDelete) {
+          await deleteCourseProp(courseId);
+          alert("Course deleted successfully!");
+        }
+      } catch (error) {
+        console.error("Failed to delete course:", error);
+        alert("Failed to delete course. Please try again.");
+      }
+    } else {
+      dispatch(deleteReduxCourse(courseId));
+    }
   };
 
-  const updateCourseHandler = () => {
-    dispatch(updateCourse(currentCourse));
+  const updateCourseHandler = async () => {
+    if (updateCourseProp) {
+      try {
+        if (!currentCourse._id) {
+          alert("Please select a course to update.");
+          return;
+        }
+        
+        if (!currentCourse.name?.trim()) {
+          alert("Please enter a course name.");
+          return;
+        }
+        
+        await updateCourseProp(currentCourse);
+        dispatch(setCurrentCourse({ 
+          _id: "",
+          name: "", 
+          description: "",
+          number: "",
+          startDate: "",
+          endDate: "",
+        }));
+        
+        alert("Course updated successfully!");
+      } catch (error) {
+        console.error("Failed to update course:", error);
+        alert("Failed to update course. Please try again.");
+      }
+    } else {
+      dispatch(updateReduxCourse(currentCourse));
+    }
   };
 
   const setCourse = (course: Course) => {
@@ -37,12 +128,37 @@ export default function Dashboard() {
     dispatch(toggleShowAllCourses());
   };
 
-  const handleEnroll = (courseId: string) => {
-    dispatch(enrollInCourse({ userId: currentUser._id, courseId }));
+  const handleEnroll = async (courseId: string) => {
+    try {
+      const enrollment = await enrollmentClient.enrollUserInCourse(currentUser._id, courseId);
+      dispatch(enrollInCourse({ userId: currentUser._id, courseId }));
+      console.log("Successfully enrolled:", enrollment);
+    } catch (error: any) {
+      console.error("Error enrolling:", error);
+      if (error.response?.status === 409) {
+        alert("You are already enrolled in this course.");
+      } else {
+        alert("Failed to enroll. Please try again.");
+      }
+    }
   };
 
-  const handleUnenroll = (courseId: string) => {
-    dispatch(unenrollFromCourse({ userId: currentUser._id, courseId }));
+  const handleUnenroll = async (courseId: string) => {
+    try {
+      const confirmUnenroll = window.confirm("Are you sure you want to unenroll from this course?");
+      if (confirmUnenroll) {
+        await enrollmentClient.unenrollUserFromCourse(currentUser._id, courseId);
+        dispatch(unenrollFromCourse({ userId: currentUser._id, courseId }));
+        console.log("Successfully unenrolled");
+      }
+    } catch (error: any) {
+      console.error("Error unenrolling:", error);
+      if (error.response?.status === 404) {
+        alert("Enrollment not found.");
+      } else {
+        alert("Failed to unenroll. Please try again.");
+      }
+    }
   };
 
   const isEnrolled = (courseId: string) => {
@@ -53,24 +169,12 @@ export default function Dashboard() {
     );
   };
 
-  const isFaculty = currentUser.role === "FACULTY";
+  const isFaculty = currentUser?.role === "FACULTY";
+  
+  // Filter courses based on showAllCourses toggle and user role
   const displayedCourses = showAllCourses 
     ? courses 
-    : courses.filter((course: Course) =>
-        enrollments.some(
-          (enrollment: any) =>
-            enrollment.user === currentUser._id &&
-            enrollment.course === course._id
-        )
-      );
-
-  const enrolledCoursesCount = courses.filter((course: Course) =>
-    enrollments.some(
-      (enrollment: any) =>
-        enrollment.user === currentUser._id &&
-        enrollment.course === course._id
-    )
-  ).length;
+    : courses.filter((course: Course) => isEnrolled(course._id) || isFaculty);
 
   return (
     <div id="wd-dashboard">
@@ -80,11 +184,13 @@ export default function Dashboard() {
       {isFaculty && (
         <>
           <h5>
-            New Course
+            {currentCourse._id ? "Edit Course" : "New Course"}
             <button
               className="btn btn-primary float-end"
               id="wd-add-new-course-click"
               onClick={addNewCourse}
+              disabled={!currentCourse.name?.trim()}
+              style={{ display: currentCourse._id ? 'none' : 'inline-block' }}
             >
               Add
             </button>
@@ -92,19 +198,36 @@ export default function Dashboard() {
               className="btn btn-success float-end me-2"
               id="wd-update-course-click"
               onClick={updateCourseHandler}
+              disabled={!currentCourse._id || !currentCourse.name?.trim()}
+              style={{ display: currentCourse._id ? 'inline-block' : 'none' }}
             >
               Update
             </button>
+            {currentCourse._id && (
+              <button
+                className="btn btn-secondary float-end me-2"
+                onClick={() => dispatch(setCurrentCourse({ 
+                  _id: "",
+                  name: "", 
+                  description: "",
+                  number: "",
+                  startDate: "",
+                  endDate: "",
+                }))}
+              >
+                Cancel
+              </button>
+            )}
           </h5>
           <br />
           <FormControl
-            value={currentCourse.name}
+            value={currentCourse.name || ""}
             className="mb-2"
             placeholder="Course Name"
             onChange={(e) => setCourse({ ...currentCourse, name: e.target.value })}
           />
           <FormControl
-            value={currentCourse.description}
+            value={currentCourse.description || ""}
             rows={3}
             as="textarea"
             placeholder="Course Description"
@@ -116,14 +239,16 @@ export default function Dashboard() {
 
       <div className="d-flex justify-content-between align-items-center">
         <h2 id="wd-dashboard-published">
-          {showAllCourses ? "All Courses" : `Published Courses (${enrolledCoursesCount})`}
+          {showAllCourses ? "All Courses" : `Published Courses (${displayedCourses.length})`}
         </h2>
-        <button
-          className="btn btn-primary"
-          onClick={handleEnrollmentToggle}
-        >
-          {showAllCourses ? "Show Enrolled Only" : "Show All Courses"}
-        </button>
+        {!isFaculty && (
+          <button
+            className="btn btn-primary"
+            onClick={handleEnrollmentToggle}
+          >
+            {showAllCourses ? "Show Enrolled Only" : "Show All Courses"}
+          </button>
+        )}
       </div>
       <hr />
 

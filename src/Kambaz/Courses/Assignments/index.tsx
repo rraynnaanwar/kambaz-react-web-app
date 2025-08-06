@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { FaSearch } from "react-icons/fa";
 import ModulesControls from "./AssignmentControls";
 import { FormControl, InputGroup, ListGroup } from "react-bootstrap";
@@ -7,7 +8,8 @@ import LessonControlButtons from "../Modules/LessonControlButtons";
 import { FaRegFileAlt } from "react-icons/fa";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { deleteAssignment } from "./reducer";
+import { deleteAssignment, setAssignments } from "./reducer";
+import * as assignmentClient from "./client";
 
 export default function Assignments() {
   const { cid } = useParams();
@@ -22,9 +24,33 @@ export default function Assignments() {
     (assignment: any) => assignment.course === cid
   );
 
-  const handleDeleteAssignment = (assignmentId: string) => {
+  // Fetch assignments when component mounts or course changes
+  useEffect(() => {
+    const fetchAssignments = async () => {
+      if (cid) {
+        try {
+          const fetchedAssignments = await assignmentClient.findAssignmentsForCourse(cid);
+          dispatch(setAssignments(fetchedAssignments));
+        } catch (error) {
+          console.error("Error fetching assignments:", error);
+        }
+      }
+    };
+    fetchAssignments();
+  }, [cid, dispatch]);
+
+  const handleDeleteAssignment = async (assignmentId: string) => {
     if (window.confirm("Are you sure you want to delete this assignment?")) {
-      dispatch(deleteAssignment(assignmentId));
+      try {
+        if (cid) {
+          await assignmentClient.deleteAssignment(cid, assignmentId);
+          // Update Redux state after successful deletion
+          dispatch(deleteAssignment(assignmentId));
+        }
+      } catch (error) {
+        console.error("Error deleting assignment:", error);
+        alert("Failed to delete assignment. Please try again.");
+      }
     }
   };
 
