@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 
 export default function AccountNavigation() {
   const { currentUser } = useSelector((state: any) => state.accountReducer);
-  
+     
   return (
     <div id="wd-account-navigation" className="wd list-group fs-5 rounded-0">
       {!currentUser && (
@@ -19,7 +19,7 @@ export default function AccountNavigation() {
           >
             Signin
           </NavLink>
-
+           
           <NavLink
             to="/Kambaz/Account/Signup"
             id="wd-account-signup-link"
@@ -33,19 +33,35 @@ export default function AccountNavigation() {
           </NavLink>
         </>
       )}
-
+       
       {currentUser && (
-        <NavLink
-          to="/Kambaz/Account/Profile"
-          id="wd-account-profile-link"
-          className={({ isActive }) =>
-            `list-group-item border border-0 ${
-              isActive ? "active text-danger fw-bold" : "text-danger"
-            }`
-          }
-        >
-          Profile
-        </NavLink>
+        <>
+          <NavLink
+            to="/Kambaz/Account/Profile"
+            id="wd-account-profile-link"
+            className={({ isActive }) =>
+              `list-group-item border border-0 ${
+                isActive ? "active text-danger fw-bold" : "text-danger"
+              }`
+            }
+          >
+            Profile
+          </NavLink>
+
+          {currentUser.role === "ADMIN" && (
+            <NavLink
+              to="/Kambaz/Account/Users"
+              id="wd-account-users-link"
+              className={({ isActive }) =>
+                `list-group-item border border-0 ${
+                  isActive ? "active text-danger fw-bold" : "text-danger"
+                }`
+              }
+            >
+              Users
+            </NavLink>
+          )}
+        </>
       )}
     </div>
   );
