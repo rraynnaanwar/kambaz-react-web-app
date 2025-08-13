@@ -1,9 +1,30 @@
+import { useState, useEffect } from "react";
+import { useParams } from "react-router";
 import { Table } from "react-bootstrap";
 import { FaUserCircle } from "react-icons/fa";
 import PeopleDetails from "./Details";
 import { Link } from "react-router-dom";
+import * as courseClient from "../client";
 
 export default function PeopleTable({ users = [] }: { users?: any[] }) {
+  const [courseUsers, setCourseUsers] = useState<any[]>([]);
+  const { cid } = useParams(); // Get course ID from URL params
+  
+  // If cid exists, fetch course users; otherwise use passed users
+  useEffect(() => {
+    if (cid) {
+      const fetchCourseUsers = async () => {
+        const users = await courseClient.findUsersForCourse(cid);
+        setCourseUsers(users);
+      };
+      fetchCourseUsers();
+    } else {
+      setCourseUsers(users);
+    }
+  }, [cid, users]);
+
+  const displayUsers = cid ? courseUsers : users;
+
   return (
     <div id="wd-people-table">
       <PeopleDetails />
@@ -19,7 +40,7 @@ export default function PeopleTable({ users = [] }: { users?: any[] }) {
           </tr>
         </thead>
         <tbody>
-          {users.map((user: any) => (
+          {displayUsers.map((user: any) => (
             <tr key={user._id}>
               <td className="wd-full-name text-nowrap">
                 <Link

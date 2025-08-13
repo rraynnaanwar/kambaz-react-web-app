@@ -6,11 +6,11 @@ import Courses from "./Courses";
 import ProtectedCourseRoute from "./Courses/ProtectedCourseRoute";
 import ProtectedRoute from "./Account/ProtectedRoute";
 import Session from "./Account/Session";
-import * as userClient from "./Account/client";
 import "./styles.css";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import * as courseClient from "./Courses/client";
+import * as userClient from "./Account/client";
 
 export default function Kambaz() {
   const [courses, setCourses] = useState<any[]>([]);
@@ -18,7 +18,7 @@ export default function Kambaz() {
 
   const addNewCourse = async (course: any) => {
     try {
-      const newCourse = await userClient.createCourse(course);
+      const newCourse = await courseClient.createCourse(course);
       setCourses((prevCourses) => [...prevCourses, newCourse]);
       return newCourse;
     } catch (error) {
@@ -29,12 +29,11 @@ export default function Kambaz() {
 
   const deleteCourse = async (courseId: string) => {
     try {
-      console.log("Deleting course with ID:", courseId);
-      await courseClient.deleteCourse(courseId);
-      setCourses((prevCourses) => prevCourses.filter((course) => course._id !== courseId));
-      console.log("Course deleted successfully");
+      const status = await courseClient.deleteCourse(courseId);
+      setCourses((prevCourses) =>
+        prevCourses.filter((course) => course._id !== courseId)
+      );
     } catch (error) {
-      console.error("Error deleting course:", error);
       throw error;
     }
   };
@@ -53,22 +52,92 @@ export default function Kambaz() {
     }
   };
 
+  const [enrolling, setEnrolling] = useState<boolean>(false);
 
+  const findCoursesForUser = async () => {
+    try {
+      // Add null check here!
+      if (!currentUser || !currentUser._id) {
+        console.log("No currentUser found in findCoursesForUser");
+        return;
+      }
+      console.log("Finding courses for user:", currentUser._id);
+      const courses = await userClient.findCoursesForUser(currentUser._id);
+      setCourses(courses);
+    } catch (error) {
+      console.error("Error in findCoursesForUser:", error);
+    }
+  };
+
+  const updateEnrollment = async (courseId: string, enrolled: boolean) => {
+    try {
+      // Add null check here!
+      if (!currentUser || !currentUser._id) {
+        console.error("No currentUser found in updateEnrollment");
+        return;
+      }
+      
+      if (enrolled) {
+        await userClient.enrollIntoCourse(currentUser._id, courseId);
+      } else {
+        await userClient.unenrollFromCourse(currentUser._id, courseId);
+      }
+      setCourses(
+        courses.map((course) => {
+          if (course._id === courseId) {
+            return { ...course, enrolled: enrolled };
+          } else {
+            return course;
+          }
+        })
+      );
+    } catch (error) {
+      console.error("Error in updateEnrollment:", error);
+    }
+  };
 
   const fetchCourses = async () => {
     try {
-      const courses = await userClient.findMyCourses();
+      // Add null check here!
+      if (!currentUser || !currentUser._id) {
+        console.log("No currentUser found in fetchCourses");
+        return;
+      }
+      
+      console.log("Fetching all courses for user:", currentUser._id);
+      const allCourses = await courseClient.fetchAllCourses();
+      const enrolledCourses = await userClient.findCoursesForUser(
+        currentUser._id
+      );
+      const courses = allCourses.map((course: any) => {
+        if (enrolledCourses.find((c: any) => c._id === course._id)) {
+          return { ...course, enrolled: true };
+        } else {
+          return course;
+        }
+      });
       setCourses(courses);
     } catch (error) {
-      console.error("Error fetching courses:", error);
+      console.error("Error in fetchCourses:", error);
     }
   };
 
   useEffect(() => {
-    if (currentUser) {
-      fetchCourses();
+    console.log("useEffect running - currentUser:", currentUser, "enrolling:", enrolling);
+    
+    // Only run if currentUser exists
+    if (currentUser && currentUser._id) {
+      if (enrolling) {
+        fetchCourses();
+      } else {
+        findCoursesForUser();
+      }
+    } else {
+      console.log("Skipping course fetch - no valid user");
+      // Clear courses if no user
+      setCourses([]);
     }
-  }, [currentUser]);
+  }, [currentUser, enrolling]);
 
   return (
     <Session>
@@ -82,11 +151,14 @@ export default function Kambaz() {
               path="/Dashboard"
               element={
                 <ProtectedRoute>
-                  <Dashboard 
-                    addNewCourse={addNewCourse} 
+                  <Dashboard
+                    addNewCourse={addNewCourse}
                     courses={courses}
                     deleteCourse={deleteCourse}
                     updateCourse={updateCourse}
+                    enrolling={enrolling}
+                    setEnrolling={setEnrolling}
+                    updateEnrollment={updateEnrollment}
                   />
                 </ProtectedRoute>
               }

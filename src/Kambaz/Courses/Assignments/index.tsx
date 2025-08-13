@@ -23,8 +23,6 @@ export default function Assignments() {
   const courseAssignments = assignments.filter(
     (assignment: any) => assignment.course === cid
   );
-
-  // Fetch assignments when component mounts or course changes
   useEffect(() => {
     const fetchAssignments = async () => {
       if (cid) {
@@ -44,7 +42,6 @@ export default function Assignments() {
       try {
         if (cid) {
           await assignmentClient.deleteAssignment(cid, assignmentId);
-          // Update Redux state after successful deletion
           dispatch(deleteAssignment(assignmentId));
         }
       } catch (error) {

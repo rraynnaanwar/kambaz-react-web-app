@@ -18,6 +18,16 @@ export const findAssignmentsForCourse = async (courseId: string) => {
   return response.data;
 };
 
+export const findAssignmentById = async (
+  courseId: string,
+  assignmentId: string
+) => {
+  const response = await axios.get(
+    `${ASSIGNMENTS_API}/${courseId}/assignments/${assignmentId}`
+  );
+  return response.data;
+};
+
 export const updateAssignment = async (
   courseId: string,
   assignmentId: string,
