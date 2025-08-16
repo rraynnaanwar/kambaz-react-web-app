@@ -60,31 +60,29 @@ export default function Dashboard({
 
     fetchEnrollments();
   }, [currentUser?._id, dispatch]);
-    const isEnrolled = (courseId: string) => {
-    const enrolled = enrollments.some(
+  
+  const isEnrolled = (courseId: string) => {
+    if (!currentUser?._id || !Array.isArray(enrollments)) return false;
+
+    return enrollments.some(
       (enrollment: any) =>
-        enrollment.user === currentUser._id && enrollment.course === courseId
+        enrollment?.user === currentUser._id && enrollment?.course === courseId
     );
-    console.log(`Course ${courseId}: enrolled = ${enrolled}`);
-    return enrolled;
   };
 
-  
   const isFaculty = currentUser?.role === "FACULTY";
+  
   // Determine which courses to display
   const displayedCourses = (() => {
-    if (isFaculty) {
-      // Faculty sees all courses they created/manage
-      return courses;
-    }
-    
-    if (enrolling || showAllCourses) {
-      // Show all courses when in enrolling mode or "Show All" is toggled
-      return courses;
-    }
-    
-    // Default: Show only enrolled courses for students
-    return courses.filter((course: { _id: string; }) => isEnrolled(course._id));
+    if (!Array.isArray(courses)) return [];
+
+    if (isFaculty) return courses;
+
+    if (enrolling || showAllCourses) return courses;
+
+    return courses.filter(
+      (course: any) => course?._id && isEnrolled(course._id)
+    );
   })();
 
   const addNewCourse = async () => {
@@ -180,13 +178,19 @@ export default function Dashboard({
       );
       dispatch(enrollInCourse({ userId: currentUser._id, courseId }));
       console.log("Successfully enrolled:", enrollment);
-      
+
       // Refresh enrollments after successful enrollment
-      const userEnrollments = await enrollmentClient.findEnrollmentsForUser(currentUser._id);
+      const userEnrollments = await enrollmentClient.findEnrollmentsForUser(
+        currentUser._id
+      );
       dispatch(setEnrollments(userEnrollments));
     } catch (error: any) {
       console.error("Error enrolling:", error);
-      if (error.response?.status === 409 || error.message?.includes("E11000") || error.message?.includes("already enrolled")) {
+      if (
+        error.response?.status === 409 ||
+        error.message?.includes("E11000") ||
+        error.message?.includes("already enrolled")
+      ) {
         alert("You are already enrolled in this course.");
       } else {
         alert("Failed to enroll. Please try again.");
@@ -206,9 +210,11 @@ export default function Dashboard({
         );
         dispatch(unenrollFromCourse({ userId: currentUser._id, courseId }));
         console.log("Successfully unenrolled");
-        
+
         // Refresh enrollments after successful unenrollment
-        const userEnrollments = await enrollmentClient.findEnrollmentsForUser(currentUser._id);
+        const userEnrollments = await enrollmentClient.findEnrollmentsForUser(
+          currentUser._id
+        );
         dispatch(setEnrollments(userEnrollments));
       }
     } catch (error: any) {
@@ -221,9 +227,6 @@ export default function Dashboard({
     }
   };
 
-
-
-
   // Debug logging
   console.log("Dashboard state:", {
     currentUser: currentUser?._id,
@@ -232,13 +235,17 @@ export default function Dashboard({
     showAllCourses,
     totalCourses: courses.length,
     displayedCourses: displayedCourses.length,
-    enrollments: enrollments.length
+    enrollments: enrollments.length,
   });
+
+  // Debug logging for null courses
+  console.log("Courses before filtering:", displayedCourses);
+  console.log("Null courses:", displayedCourses.filter(c => !c || !c._id));
 
   return (
     <div id="wd-dashboard">
       <h1 id="wd-dashboard-title">Dashboard</h1>
-      
+
       {/* Toggle button between "All Courses" and "My Courses" modes */}
       {!isFaculty && (
         <button
@@ -316,12 +323,16 @@ export default function Dashboard({
 
       <div className="d-flex justify-content-between align-items-center">
         <h2 id="wd-dashboard-published">
-          {enrolling || showAllCourses ? "All Courses" : "My Courses"} ({displayedCourses.length})
+          {enrolling || showAllCourses ? "All Courses" : "My Courses"} (
+          {displayedCourses.filter((courseItem: Course) => courseItem && courseItem._id).length})
         </h2>
-        
+
         {/* Show enrolled/all toggle only when not in enrolling mode and not faculty */}
         {!isFaculty && !enrolling && (
-          <button className="btn btn-secondary" onClick={handleEnrollmentToggle}>
+          <button
+            className="btn btn-secondary"
+            onClick={handleEnrollmentToggle}
+          >
             {showAllCourses ? "Show My Courses" : "Show All Courses"}
           </button>
         )}
@@ -330,134 +341,139 @@ export default function Dashboard({
 
       <div id="wd-dashboard-courses">
         <Row xs={1} md={5} className="g-4">
-          {displayedCourses.map((courseItem: Course) => {
-            const userIsEnrolled = isEnrolled(courseItem._id);
-            
-            return (
-              <Col
-                key={courseItem._id}
-                className="wd-dashboard-course"
-                style={{ width: "300px" }}
-              >
-                <Card>
-                  <Link
-                    to={`/Kambaz/Courses/${courseItem._id}/Home`}
-                    className="wd-dashboard-course-link text-decoration-none text-dark"
-                  >
-                    <Card.Img
-                      src="/images/reactjs.jpg"
-                      variant="top"
-                      width="100%"
-                      height={160}
-                    />
-                  </Link>
-                  <Card.Body className="card-body">
+          {displayedCourses
+            .filter((courseItem: Course) => courseItem && courseItem._id) // Filter out null/undefined courses
+            .map((courseItem: Course) => {
+              const userIsEnrolled = isEnrolled(courseItem._id);
+
+              return (
+                <Col
+                  key={courseItem._id}
+                  className="wd-dashboard-course"
+                  style={{ width: "300px" }}
+                >
+                  <Card>
                     <Link
                       to={`/Kambaz/Courses/${courseItem._id}/Home`}
                       className="wd-dashboard-course-link text-decoration-none text-dark"
                     >
-                      <Card.Title className="wd-dashboard-course-title text-nowrap overflow-hidden">
-                        {courseItem.name}
-                      </Card.Title>
-                      <Card.Text
-                        className="wd-dashboard-course-description overflow-hidden"
-                        style={{ height: "100px" }}
-                      >
-                        {courseItem.description}
-                      </Card.Text>
+                      <Card.Img
+                        src="/images/reactjs.jpg"
+                        variant="top"
+                        width="100%"
+                        height={160}
+                      />
                     </Link>
+                    <Card.Body className="card-body">
+                      <Link
+                        to={`/Kambaz/Courses/${courseItem._id}/Home`}
+                        className="wd-dashboard-course-link text-decoration-none text-dark"
+                      >
+                        <Card.Title className="wd-dashboard-course-title text-nowrap overflow-hidden">
+                          {courseItem.name}
+                        </Card.Title>
+                        <Card.Text
+                          className="wd-dashboard-course-description overflow-hidden"
+                          style={{ height: "100px" }}
+                        >
+                          {courseItem.description}
+                        </Card.Text>
+                      </Link>
 
-                    <div className="mt-2">
-                      {/* Faculty controls */}
-                      {isFaculty && (
-                        <>
-                          <Link to={`/Kambaz/Courses/${courseItem._id}/Home`}>
-                            <Button variant="primary">Go</Button>
-                          </Link>
-                          <button
-                            onClick={(event) => {
-                              event.preventDefault();
-                              deleteCourseHandler(courseItem._id);
-                            }}
-                            className="btn btn-danger float-end"
-                            id="wd-delete-course-click"
-                          >
-                            Delete
-                          </button>
-                          <button
-                            id="wd-edit-course-click"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              setCourse(courseItem);
-                            }}
-                            className="btn btn-warning me-2 float-end"
-                          >
-                            Edit
-                          </button>
-                        </>
-                      )}
-
-                      {/* Student controls */}
-                      {!isFaculty && (
-                        <>
-                          {/* Show "Go" button only if enrolled */}
-                          {userIsEnrolled && (
+                      <div className="mt-2">
+                        {/* Faculty controls */}
+                        {isFaculty && (
+                          <>
                             <Link to={`/Kambaz/Courses/${courseItem._id}/Home`}>
                               <Button variant="primary">Go</Button>
                             </Link>
-                          )}
-
-                          {/* Show enrollment controls based on mode */}
-                          {enrolling ? (
-                            // In enrolling mode, show toggle button
                             <button
                               onClick={(event) => {
                                 event.preventDefault();
-                                updateEnrollment(courseItem._id, !userIsEnrolled);
+                                deleteCourseHandler(courseItem._id);
                               }}
-                              className={`btn float-end ${
-                                userIsEnrolled ? "btn-danger" : "btn-success"
-                              }`}
+                              className="btn btn-danger float-end"
+                              id="wd-delete-course-click"
                             >
-                              {userIsEnrolled ? "Unenroll" : "Enroll"}
+                              Delete
                             </button>
-                          ) : (
-                            // In normal mode, show appropriate button
-                            <>
-                              {userIsEnrolled ? (
-                                <button
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    handleUnenroll(courseItem._id);
-                                  }}
-                                  className="btn btn-danger float-end"
-                                >
-                                  Unenroll
-                                </button>
-                              ) : (
-                                // Only show enroll button if viewing all courses and not enrolled
-                                showAllCourses && (
+                            <button
+                              id="wd-edit-course-click"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                setCourse(courseItem);
+                              }}
+                              className="btn btn-warning me-2 float-end"
+                            >
+                              Edit
+                            </button>
+                          </>
+                        )}
+
+                        {/* Student controls */}
+                        {!isFaculty && (
+                          <>
+                            {/* Show "Go" button only if enrolled */}
+                            {userIsEnrolled && (
+                              <Link to={`/Kambaz/Courses/${courseItem._id}/Home`}>
+                                <Button variant="primary">Go</Button>
+                              </Link>
+                            )}
+
+                            {/* Show enrollment controls based on mode */}
+                            {enrolling ? (
+                              // In enrolling mode, show toggle button
+                              <button
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  updateEnrollment(
+                                    courseItem._id,
+                                    !userIsEnrolled
+                                  );
+                                }}
+                                className={`btn float-end ${
+                                  userIsEnrolled ? "btn-danger" : "btn-success"
+                                }`}
+                              >
+                                {userIsEnrolled ? "Unenroll" : "Enroll"}
+                              </button>
+                            ) : (
+                              // In normal mode, show appropriate button
+                              <>
+                                {userIsEnrolled ? (
                                   <button
                                     onClick={(event) => {
                                       event.preventDefault();
-                                      handleEnroll(courseItem._id);
+                                      handleUnenroll(courseItem._id);
                                     }}
-                                    className="btn btn-success float-end"
+                                    className="btn btn-danger float-end"
                                   >
-                                    Enroll
+                                    Unenroll
                                   </button>
-                                )
-                              )}
-                            </>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </Card.Body>
-                </Card>
-              </Col>
-            );
-          })}
+                                ) : (
+                                  // Only show enroll button if viewing all courses and not enrolled
+                                  showAllCourses && (
+                                    <button
+                                      onClick={(event) => {
+                                        event.preventDefault();
+                                        handleEnroll(courseItem._id);
+                                      }}
+                                      className="btn btn-success float-end"
+                                    >
+                                      Enroll
+                                    </button>
+                                  )
+                                )}
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              );
+            })}
         </Row>
       </div>
     </div>

@@ -3,10 +3,14 @@ import { Link, useNavigate } from "react-router-dom";
 import * as client from "./client";
 import { useDispatch } from "react-redux";
 import { setCurrentUser } from "./reducer";
-import { FormControl } from "react-bootstrap";
+import { FormControl, FormCheck } from "react-bootstrap";
 
 export default function Signup() {
-  const [user, setUser] = useState<any>({ username: "", password: "" });
+  const [user, setUser] = useState<any>({ 
+    username: "", 
+    password: "", 
+    role: "STUDENT"
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -25,6 +29,7 @@ export default function Signup() {
       const currentUser = await client.signup({
         username: user.username,
         password: user.password,
+        role: user.role,
       });
 
       dispatch(setCurrentUser(currentUser));
@@ -62,6 +67,30 @@ export default function Signup() {
         placeholder="password"
         type="password"
       />
+
+      <div className="mb-3">
+        <div className="mb-2">
+          <strong>Select Role:</strong>
+        </div>
+        <FormCheck
+          type="radio"
+          id="student-role"
+          name="role"
+          label="Student"
+          checked={user.role === "STUDENT"}
+          onChange={() => setUser({ ...user, role: "STUDENT" })}
+          className="wd-role-student mb-1"
+        />
+        <FormCheck
+          type="radio"
+          id="faculty-role"
+          name="role"
+          label="Faculty"
+          checked={user.role === "FACULTY"}
+          onChange={() => setUser({ ...user, role: "FACULTY" })}
+          className="wd-role-faculty mb-2"
+        />
+      </div>
 
       <button
         onClick={signup}

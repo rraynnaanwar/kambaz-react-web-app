@@ -71,7 +71,6 @@ export default function Kambaz() {
 
   const updateEnrollment = async (courseId: string, enrolled: boolean) => {
     try {
-      // Add null check here!
       if (!currentUser || !currentUser._id) {
         console.error("No currentUser found in updateEnrollment");
         return;
@@ -98,7 +97,6 @@ export default function Kambaz() {
 
   const fetchCourses = async () => {
     try {
-      // Add null check here!
       if (!currentUser || !currentUser._id) {
         console.log("No currentUser found in fetchCourses");
         return;
