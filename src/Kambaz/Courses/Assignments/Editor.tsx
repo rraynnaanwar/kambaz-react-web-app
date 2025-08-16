@@ -1,174 +1,344 @@
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  FormControl,
+  Form,
+  Button,
+  Container,
+  Row,
+  Col,
+} from "react-bootstrap";
+import { addAssignment, updateAssignment } from "./reducer";
+import * as assignmentClient from "./client";
+
 export default function AssignmentEditor() {
+  const { cid, aid } = useParams();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const { assignments } = useSelector((state: any) => state.assignmentsReducer);
+  const [loading, setLoading] = useState(false);
+
+  const [assignment, setAssignment] = useState({
+    _id: "",
+    title: "",
+    course: cid || "",
+    description: "",
+    points: 100,
+    dueDate: "",
+    availableDate: "",
+    availableUntilDate: "",
+  });
+
+  const isEditing = aid !== "new";
+
+  useEffect(() => {
+    const initializeAssignment = async () => {
+      if (isEditing && aid) {
+        // Try to find assignment in Redux first
+        let existingAssignment = assignments.find((a: any) => a._id === aid);
+
+        // If not in Redux, fetch from server
+        if (!existingAssignment && cid) {
+          try {
+            const courseAssignments =
+              await assignmentClient.findAssignmentsForCourse(cid);
+            existingAssignment = courseAssignments.find(
+              (a: any) => a._id === aid
+            );
+          } catch (error) {
+            console.error("Error fetching assignment:", error);
+          }
+        }
+
+        if (existingAssignment) {
+          setAssignment({
+            ...existingAssignment,
+            // Convert dates to datetime-local format if they exist
+            dueDate: existingAssignment.dueDate
+              ? new Date(existingAssignment.dueDate).toISOString().slice(0, 16)
+              : "",
+            availableDate: existingAssignment.availableDate
+              ? new Date(existingAssignment.availableDate)
+                  .toISOString()
+                  .slice(0, 16)
+              : "",
+            availableUntilDate: existingAssignment.availableUntilDate
+              ? new Date(existingAssignment.availableUntilDate)
+                  .toISOString()
+                  .slice(0, 16)
+              : "",
+          });
+        }
+      } else {
+        // Set default dates for new assignment
+        const now = new Date();
+        const availableDate = new Date(now);
+        const dueDate = new Date(now);
+        dueDate.setDate(dueDate.getDate() + 7);
+        const availableUntilDate = new Date(dueDate);
+        availableUntilDate.setDate(availableUntilDate.getDate() + 1);
+
+        setAssignment((prev) => ({
+          ...prev,
+          availableDate: availableDate.toISOString().slice(0, 16),
+          dueDate: dueDate.toISOString().slice(0, 16),
+          availableUntilDate: availableUntilDate.toISOString().slice(0, 16),
+        }));
+      }
+    };
+
+    initializeAssignment();
+  }, [aid, assignments, isEditing, cid]);
+
+  const handleSave = async () => {
+    if (!assignment.title.trim() || !cid) {
+      alert("Please provide an assignment name.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (isEditing && aid) {
+        // Update existing assignment
+        const updatedAssignment = await assignmentClient.updateAssignment(
+          cid,
+          aid,
+          assignment
+        );
+        // Update Redux state
+        dispatch(updateAssignment(updatedAssignment));
+      } else {
+        // Create new assignment
+        const newAssignment = await assignmentClient.createAssignment({
+          ...assignment,
+          course: cid,
+        });
+        // Update Redux state
+        dispatch(addAssignment(newAssignment));
+      }
+
+      navigate(`/Kambaz/Courses/${cid}/Assignments`);
+    } catch (error) {
+      console.error("Error saving assignment:", error);
+      alert("Failed to save assignment. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    navigate(`/Kambaz/Courses/${cid}/Assignments`);
+  };
+
+  const handleInputChange = (field: string, value: any) => {
+    setAssignment((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   return (
-    <div id="wd-assignments-editor">
-      <label htmlFor="wd-name">
-        {" "}
-        <h2> Assignment Name </h2>
-      </label>
-      <input id="wd-name" value="A1 - ENV + HTML" />
-      <br />
-      <br />
-      <textarea id="wd-description" style={{ width: "400px", height: "120px" }}>
-        The assignment is available online Submit a link to the landing page of
-        your Web application running on Netlify. The landing page should include
-        the following: Your full name and section Links to each lab assignments
-        link to the Kanbas application Links to all relevant source code
-        repositories The kanbas application should include a link to navigate
-        back to the landing page
-      </textarea>
-      <br />
-      <table>
-        <tr>
-          <td align="right" valign="top">
-            <label htmlFor="wd-points">Points</label>
-          </td>
-          <td>
-            <input id="wd-points" value={100} />
-          </td>
-        </tr>
-        <tr>
-          <td colSpan={2}>
-            <div style={{ height: "15px" }} />
-          </td>
-        </tr>
-        <tr>
-          <td align="right" valign="top">
-            <label htmlFor="wd-group">Assignment Group</label>
-          </td>
-          <td>
-            <select id="wd-group">
-              <option value="Quiz">QUIZ</option>
-              <option selected value="Assignments">
-                ASSIGNMENTS
-              </option>
-            </select>
-          </td>
-        </tr>
-        <tr>
-          <td colSpan={2}>
-            <div style={{ height: "15px" }} />
-          </td>
-        </tr>
-        <tr>
-          <td align="right" valign="top">
-            <label htmlFor="wd-display-grade-as">Display Grade as</label>
-          </td>
-          <td>
-            <select id="wd-display-grade-as">
-              <option value="Percentage">Percentage</option>
-            </select>
-          </td>
-        </tr>
-        <tr>
-          <td colSpan={2}>
-            <div style={{ height: "15px" }} />
-          </td>
-        </tr>
-        <tr>
-          <td align="right" valign="top">
-            <label htmlFor="wd-submission-type"> Submission Type </label>
-          </td>
-          <td>
-            <select id="wd-submission-type">
-              <option value="Online"> Online </option>
-            </select>
-          </td>
-        </tr>
-        <tr>
-          <td colSpan={2}>
-            <div style={{ height: "15px" }} />
-          </td>
-        </tr>
+    <Container className="mt-4">
+      <Row>
+        <Col md={8} className="mx-auto">
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h2>{isEditing ? "Edit Assignment" : "New Assignment"}</h2>
+            <div>
+              <Button
+                variant="success"
+                onClick={handleSave}
+                className="me-2"
+                disabled={!assignment.title.trim() || loading}
+              >
+                {loading ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleCancel}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
 
-        <tr>
-          <td align="right" valign="top">
-            <label>Online Entry Options</label>
-          </td>
-          <td>
-            <br />
-            <input type="checkbox" name="check-entry" id="wd-website-url" />
-            <label htmlFor="wd-website-url">Website URL</label>
-            <br />
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Assignment Name</Form.Label>
+              <FormControl
+                type="text"
+                value={assignment.title}
+                onChange={(e) => handleInputChange("title", e.target.value)}
+                placeholder="Enter assignment name"
+                required
+                disabled={loading}
+              />
+            </Form.Group>
 
-            <input
-              type="checkbox"
-              name="check-entry"
-              id="wd-media-recordings"
-            />
-            <label htmlFor="wd-media-recordings">Media Recordings</label>
-            <br />
+            <Form.Group className="mb-3">
+              <Form.Label>Description</Form.Label>
+              <FormControl
+                as="textarea"
+                rows={5}
+                value={assignment.description}
+                onChange={(e) =>
+                  handleInputChange("description", e.target.value)
+                }
+                placeholder="Enter assignment description"
+                disabled={loading}
+              />
+            </Form.Group>
 
-            <input
-              type="checkbox"
-              name="check-entry"
-              id="wd-student-annotation"
-            />
-            <label htmlFor="wd-student-annotation">Student Annotations</label>
-            <br />
+            <Row>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Points</Form.Label>
+                  <FormControl
+                    type="number"
+                    value={assignment.points}
+                    onChange={(e) =>
+                      handleInputChange("points", parseInt(e.target.value) || 0)
+                    }
+                    min="0"
+                    disabled={loading}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
 
-            <input type="checkbox" name="check-entry" id="wd-file-upload" />
-            <label htmlFor="wd-file-upload">File Uploads</label>
-          </td>
-        </tr>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Available From</Form.Label>
+                  <FormControl
+                    type="datetime-local"
+                    value={assignment.availableDate}
+                    onChange={(e) =>
+                      handleInputChange("availableDate", e.target.value)
+                    }
+                    disabled={loading}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Due Date</Form.Label>
+                  <FormControl
+                    type="datetime-local"
+                    value={assignment.dueDate}
+                    onChange={(e) =>
+                      handleInputChange("dueDate", e.target.value)
+                    }
+                    disabled={loading}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
 
-        <tr>
-          <td colSpan={2}>
-            <div style={{ height: "15px" }} />
-          </td>
-        </tr>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Available Until</Form.Label>
+                  <FormControl
+                    type="datetime-local"
+                    value={assignment.availableUntilDate}
+                    onChange={(e) =>
+                      handleInputChange("availableUntilDate", e.target.value)
+                    }
+                    disabled={loading}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
 
-        <tr>
-          <td align="right" valign="top">
-            <label htmlFor = "wd-assign-to"> Assign Assign to </label>
-          </td>
-          <td>
-            <input type="text" id="wd-text-entry" placeholder="Everyone" />
-          </td>
-        </tr>
-        <tr>
-          <td colSpan={2}>
-            <div style={{ height: "15px" }} />
-          </td>
-        </tr>
+            <div className="border rounded p-3 mb-4">
+              <h5>Assignment Settings</h5>
 
-        <tr>
-          <td align="right" valign="top">
-            <label htmlFor="wd-due-date">Due</label>
-          </td>
-          <td>
-            <input type="date" id="wd-due-date" value="2024-05-13" />
-          </td>
-        </tr>
+              <Form.Group className="mb-3">
+                <Form.Label>Submission Type</Form.Label>
+                <Form.Select disabled={loading}>
+                  <option>Online</option>
+                  <option>Paper</option>
+                  <option>External Tool</option>
+                </Form.Select>
+              </Form.Group>
 
-        <tr>
-          <td colSpan={2}>
-            <div style={{ height: "15px" }} />
-          </td>
-        </tr>
+              <Form.Group className="mb-3">
+                <Form.Label>Assignment Group</Form.Label>
+                <Form.Select disabled={loading}>
+                  <option>Assignments</option>
+                  <option>Quizzes</option>
+                  <option>Exams</option>
+                  <option>Project</option>
+                </Form.Select>
+              </Form.Group>
 
-        <tr>
-          <td align="right" valign="top">
-            <label htmlFor="wd-available-from">Available from</label>
-          </td>
-          <td>
-            <input type="date" id="wd-available-from" value="2024-05-06" />
-            <label htmlFor="wd-available-until">Until</label>
-            <input type="date" id="wd-available-until" value="2024-05-20" />
-          </td>
-        </tr>
-      </table>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginTop: "20px",
-        }}
-      >
-        <button type="button" style={{ marginRight: "10px" }}>
-          Cancel
-        </button>
-        <button type="submit">Save</button>
-      </div>
-    </div>
+              <Form.Group className="mb-3">
+                <Form.Label>Display Grade As</Form.Label>
+                <Form.Select disabled={loading}>
+                  <option>Percentage</option>
+                  <option>Points</option>
+                  <option>Letter Grade</option>
+                  <option>Complete/Incomplete</option>
+                </Form.Select>
+              </Form.Group>
+            </div>
+
+            <div className="border rounded p-3 mb-4">
+              <h5>Online Entry Options</h5>
+              <Form.Check
+                type="checkbox"
+                label="Text Entry"
+                className="mb-2"
+                disabled={loading}
+              />
+              <Form.Check
+                type="checkbox"
+                label="Website URL"
+                className="mb-2"
+                disabled={loading}
+              />
+              <Form.Check
+                type="checkbox"
+                label="Media Recordings"
+                className="mb-2"
+                disabled={loading}
+              />
+              <Form.Check
+                type="checkbox"
+                label="Student Annotation"
+                className="mb-2"
+                disabled={loading}
+              />
+              <Form.Check
+                type="checkbox"
+                label="File Uploads"
+                className="mb-2"
+                disabled={loading}
+              />
+            </div>
+
+            <div className="d-flex justify-content-end gap-2 mt-4">
+              <Button
+                variant="secondary"
+                onClick={handleCancel}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="success"
+                onClick={handleSave}
+                disabled={!assignment.title.trim() || loading}
+              >
+                {loading ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </Form>
+        </Col>
+      </Row>
+    </Container>
   );
 }
