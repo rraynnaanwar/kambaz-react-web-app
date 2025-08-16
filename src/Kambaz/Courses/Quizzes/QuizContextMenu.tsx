@@ -1,32 +1,66 @@
 import { Dropdown } from "react-bootstrap";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import * as client from "./client.ts";
 
 interface QuizContextMenuProps {
   quizId: string;
-  onDeleted?: (id: string) => void; // optional callback to update parent
+  quiz?: any; // Add quiz object to get current published status
+  onDeleted?: (id: string) => void;
+  onPublishToggle?: (quizId: string, published: boolean) => void;
 }
 
-export function QuizContextMenu({ quizId, onDeleted }: QuizContextMenuProps) {
+export function QuizContextMenu({ 
+  quizId, 
+  quiz, 
+  onDeleted, 
+  onPublishToggle 
+}: QuizContextMenuProps) {
   const navigate = useNavigate();
-  const [isPublished, setIsPublished] = useState(false);
+  const { cid } = useParams();
+  
+  // Use quiz prop if available, otherwise default to false
+  const [isPublished, setIsPublished] = useState(quiz?.published || false);
+
+  // Update local state when quiz prop changes
+  useEffect(() => {
+    setIsPublished(quiz?.published || false);
+  }, [quiz?.published]);
+
   const handleEdit = () => {
     navigate(`Editor/${quizId}`);
   };
 
   const handleDelete = async () => {
-    if (quizId) {
-      const quiz = await client.deleteQuiz(quizId);
-      console.log("Successfully deleted course.");
-    } else {
-      console.log("No quiz id detected");
+    if (confirm("Are you sure you want to delete this quiz?")) {
+      try {
+        await client.deleteQuiz(quizId);
+        console.log("Successfully deleted quiz.");
+        if (onDeleted) {
+          onDeleted(quizId);
+        }
+      } catch (error) {
+        console.error("Error deleting quiz:", error);
+        alert("Failed to delete quiz. Please try again.");
+      }
     }
   };
 
-  const handlePublishToggle = () => {
-    setIsPublished(!isPublished);
-    console.log(isPublished ? "Unpublish quiz" : "Publish quiz");
+  const handlePublishToggle = async () => {
+    try {
+      const newPublishedStatus = !isPublished;
+      await client.setQuizPublished(quizId, newPublishedStatus);
+      setIsPublished(newPublishedStatus);
+      
+      if (onPublishToggle) {
+        onPublishToggle(quizId, newPublishedStatus);
+      }
+      
+      console.log(`Quiz ${newPublishedStatus ? 'published' : 'unpublished'}`);
+    } catch (error) {
+      console.error("Error updating quiz published status:", error);
+      alert("Failed to update quiz status. Please try again.");
+    }
   };
 
   return (

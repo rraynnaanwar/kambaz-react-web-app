@@ -40,3 +40,40 @@ export const deleteQuiz = async (quiz_id: string) => {
   );
   return response.data;
 }
+
+export const getQuestionsByQuiz = async (quiz_id: string) => {
+  const response = await axiosWithCredentials.get(
+    `${QUIZZES_API}/${quiz_id}/questions`
+  );
+  return response.data;
+};
+
+export const createQuestion = async (quiz_id: string, question: any) => {
+  const response = await axiosWithCredentials.post(
+    `${QUIZZES_API}/${quiz_id}/questions`,
+    { question }
+  );
+  return response.data;
+};
+
+export const updateQuestion = async (quiz_id: string, question_id: string, question: any) => {
+  const response = await axiosWithCredentials.put(
+    `${QUIZZES_API}/${quiz_id}/questions/${question_id}`,
+    { question }
+  );
+  return response.data;
+};
+
+export const deleteQuestion = async (quiz_id: string, question_id: string) => {
+  const response = await axiosWithCredentials.delete(
+    `${QUIZZES_API}/${quiz_id}/questions/${question_id}`
+  );
+  return response.data;
+};
+export const updateQuiz = async (quiz_id: string, quiz: any) => {
+  const response = await axiosWithCredentials.put(
+    `${QUIZZES_API}/${quiz_id}`,
+    { quiz }
+  );
+  return response.data;
+};

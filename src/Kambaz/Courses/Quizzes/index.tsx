@@ -51,6 +51,12 @@ export default function Quizzes() {
     );
   };
 
+const handleQuizDeleted = (deletedQuizId: string) => {
+  setQuizzes((prevQuizzes) =>
+    prevQuizzes.filter((quiz) => quiz._id !== deletedQuizId)
+  );
+};
+
   useEffect(() => {
     const fetchQuizzes = async () => {
       try {
@@ -138,10 +144,11 @@ export default function Quizzes() {
                             {getQuizAvailability(quiz).status}
                           </div>
                         </div>
-                        <QuizControlButtons
-                          quiz={quiz}
-                          onQuizUpdate={handleQuizUpdate}
-                        />
+ <QuizControlButtons
+  quiz={quiz}
+  onQuizUpdate={handleQuizUpdate}
+  onQuizDeleted={handleQuizDeleted}
+/>
                       </div>
                       <div className="mt-1 text-muted small">
                         {quiz.totalQuestions ||

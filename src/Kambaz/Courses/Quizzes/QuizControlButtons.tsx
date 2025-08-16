@@ -6,10 +6,15 @@ import { QuizContextMenu } from "./QuizContextMenu";
 
 interface QuizControlButtonsProps {
   quiz: any;
-  onQuizUpdate?: (updatedQuiz: any) => void; // Callback to update parent state
+  onQuizUpdate?: (updatedQuiz: any) => void;
+  onQuizDeleted?: (quizId: string) => void; // Add this prop
 }
 
-export default function QuizControlButtons({ quiz, onQuizUpdate }: QuizControlButtonsProps) {
+export default function QuizControlButtons({ 
+  quiz, 
+  onQuizUpdate, 
+  onQuizDeleted 
+}: QuizControlButtonsProps) {
 
   const handlePublishToggle = async () => {
     try {
@@ -29,6 +34,14 @@ export default function QuizControlButtons({ quiz, onQuizUpdate }: QuizControlBu
       console.log(`Quiz ${quiz.title} ${newPublishedStatus ? 'published' : 'unpublished'}`);
     } catch (error) {
       console.error("Error updating quiz published status:", error);
+    }
+  };
+
+  const handlePublishToggleFromMenu = (quizId: string, published: boolean) => {
+    // Update the parent state when publish status changes from context menu
+    const newQuiz = { ...quiz, published };
+    if (onQuizUpdate) {
+      onQuizUpdate(newQuiz);
     }
   };
 
@@ -66,7 +79,11 @@ export default function QuizControlButtons({ quiz, onQuizUpdate }: QuizControlBu
 
         <Dropdown.Menu>
           <QuizContextMenu 
-          quizId={quiz._id}/>
+            quizId={quiz._id}
+            quiz={quiz}
+            onDeleted={onQuizDeleted}
+            onPublishToggle={handlePublishToggleFromMenu}
+          />
         </Dropdown.Menu>
       </Dropdown>
     </div>

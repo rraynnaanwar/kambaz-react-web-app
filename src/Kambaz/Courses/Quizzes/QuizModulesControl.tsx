@@ -9,9 +9,10 @@ export default function QuizModulesControls() {
   const { currentUser } = useSelector((state: any) => state.accountReducer);
   const isFaculty = currentUser?.role === "FACULTY";
 
-  const handleAddQuiz = () => {
-    navigate(`/Kambaz/Courses/${cid}/Quizzes/new`);
-  };
+const handleAddQuiz = () => {
+  // Navigate to create new quiz editor
+  navigate(`Editor/new`);
+};
 
   if (!isFaculty) {
     return null;

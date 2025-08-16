@@ -26,10 +26,10 @@ export default function QuizDetails() {
     accessCode: "None",
   };
 
-  const editQuiz = () => {
-    console.log("navigartintg to editor")
-    navigate(`../Quizzes/Editor/${quiz._id}`, { state: { quiz } });
-  };
+const editQuiz = () => {
+  console.log("navigating to editor");
+  navigate(`../Quizzes/Editor/${quiz._id}`);
+};
 
   const formatDate = (date: Date) =>
     date

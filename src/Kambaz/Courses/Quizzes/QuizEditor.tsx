@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import * as client from "./client";
+import QuizQuestions from "./QuestionEditors/QuizQuestions";
 
 // Move FormGroup outside to prevent recreating on every render
 const FormGroup = ({
@@ -108,42 +109,43 @@ export default function QuizEditor({
   });
 
   // Fetch quiz data if we have qid but no location state and no initialQuiz prop
-  useEffect(() => {
-    const fetchQuizData = async () => {
-      // Only fetch if we don't have initialQuiz prop, location state, and we have a quiz ID
-      if (!initialQuiz && !location.state?.quiz && qid) {
-        try {
-          setLoading(true);
-          const fetchedQuiz = await client.getQuizById(qid);
-          
-          // Format dates for datetime-local inputs
-          const formattedQuiz = {
-            ...fetchedQuiz,
-            courseId: cid, // Ensure courseId is set from URL params
-            dueDate: fetchedQuiz.dueDate
-              ? new Date(fetchedQuiz.dueDate).toISOString().slice(0, 16)
-              : "",
-            availableDate: fetchedQuiz.availableDate
-              ? new Date(fetchedQuiz.availableDate).toISOString().slice(0, 16)
-              : "",
-            untilDate: fetchedQuiz.untilDate
-              ? new Date(fetchedQuiz.untilDate).toISOString().slice(0, 16)
-              : "",
-            description: fetchedQuiz.description || "",
-          };
-          
-          setQuiz(formattedQuiz);
-        } catch (error) {
-          console.error("Error fetching quiz:", error);
-          // Keep the fallback dummy quiz if fetch fails
-        } finally {
-          setLoading(false);
-        }
+useEffect(() => {
+  const fetchQuizData = async () => {
+    // Only fetch if we don't have initialQuiz prop, location state, and we have a quiz ID
+    // BUT NOT if qid is "new" (for new quiz creation)
+    if (!initialQuiz && !location.state?.quiz && qid && qid !== "new") {
+      try {
+        setLoading(true);
+        const fetchedQuiz = await client.getQuizById(qid);
+        
+        // Format dates for datetime-local inputs
+        const formattedQuiz = {
+          ...fetchedQuiz,
+          courseId: cid, // Ensure courseId is set from URL params
+          dueDate: fetchedQuiz.dueDate
+            ? new Date(fetchedQuiz.dueDate).toISOString().slice(0, 16)
+            : "",
+          availableDate: fetchedQuiz.availableDate
+            ? new Date(fetchedQuiz.availableDate).toISOString().slice(0, 16)
+            : "",
+          untilDate: fetchedQuiz.untilDate
+            ? new Date(fetchedQuiz.untilDate).toISOString().slice(0, 16)
+            : "",
+          description: fetchedQuiz.description || "",
+        };
+        
+        setQuiz(formattedQuiz);
+      } catch (error) {
+        console.error("Error fetching quiz:", error);
+        // Keep the fallback dummy quiz if fetch fails
+      } finally {
+        setLoading(false);
       }
-    };
+    }
+  };
 
-    fetchQuizData();
-  }, [qid, cid, location.state, initialQuiz]);
+  fetchQuizData();
+}, [qid, cid, location.state, initialQuiz]);
 
   // Use useCallback to prevent function recreation on every render
   const handleInputChange = useCallback((field: string, value: any) => {
@@ -153,17 +155,27 @@ export default function QuizEditor({
     }));
   }, []);
 
-  const handleSubmit = useCallback(async () => {
-    try {
-      console.log("Saving quiz:", quiz);
-      await client.createQuiz(quiz);
-      alert("Quiz saved successfully!");
-      navigate(-1); // Go back to quiz details
-    } catch (error) {
-      console.error("Error saving quiz:", error);
-      alert("Failed to save quiz. Please try again.");
+const handleSubmit = useCallback(async () => {
+  try {
+    console.log("Saving quiz:", quiz);
+    
+    if (qid === "new" || isNewQuiz) {
+      // Creating new quiz
+      const savedQuiz = await client.createQuiz(quiz);
+      alert("Quiz created successfully!");
+      navigate(`/Kambaz/Courses/${cid}/Quizzes/${savedQuiz._id || savedQuiz.id}`);
+    } else {
+      // Updating existing quiz
+      await client.updateQuiz(quiz._id, quiz); // You'll need to add this function to client.ts
+      alert("Quiz updated successfully!");
+      navigate(-1);
     }
-  }, [quiz, navigate]);
+  } catch (error) {
+    console.error("Error saving quiz:", error);
+    alert("Failed to save quiz. Please try again.");
+  }
+}, [quiz, navigate, qid, isNewQuiz, cid]);
+
 
   const handleCancel = useCallback(() => {
     navigate(-1); // Go back to quiz details
@@ -188,28 +200,34 @@ export default function QuizEditor({
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h1 className="mb-1">Edit Quiz</h1>
-          <nav aria-label="breadcrumb">
-            <ol className="breadcrumb mb-0">
-              <li className="breadcrumb-item">
-                <button
-                  className="btn btn-link p-0 text-decoration-none"
-                  onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes`)}
-                >
-                  Quizzes
-                </button>
-              </li>
-              <li className="breadcrumb-item">
-                <button
-                  className="btn btn-link p-0 text-decoration-none"
-                  onClick={() => navigate(-1)}
-                >
-                  {quiz.title}
-                </button>
-              </li>
-              <li className="breadcrumb-item active">Edit</li>
-            </ol>
-          </nav>
+<h1 className="mb-1">
+  {qid === "new" || isNewQuiz ? "Create New Quiz" : "Edit Quiz"}
+</h1>
+<nav aria-label="breadcrumb">
+  <ol className="breadcrumb mb-0">
+    <li className="breadcrumb-item">
+      <button
+        className="btn btn-link p-0 text-decoration-none"
+        onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes`)}
+      >
+        Quizzes
+      </button>
+    </li>
+    {qid !== "new" && (
+      <li className="breadcrumb-item">
+        <button
+          className="btn btn-link p-0 text-decoration-none"
+          onClick={() => navigate(-1)}
+        >
+          {quiz.title}
+        </button>
+      </li>
+    )}
+    <li className="breadcrumb-item active">
+      {qid === "new" || isNewQuiz ? "Create Quiz" : "Edit"}
+    </li>
+  </ol>
+</nav>
         </div>
         <div className="d-flex gap-2">
           <button
@@ -266,6 +284,15 @@ export default function QuizEditor({
                   >
                     Details
                   </button>
+
+                  <button
+                    className={`nav-link ${activeTab === "questions" ? "active" : ""}`}
+                    type="button"
+                    onClick={() => setActiveTab("questions")}
+                  >
+                    Questions
+                  </button>
+
                   <button
                     className={`nav-link ${
                       activeTab === "options" ? "active" : ""
@@ -518,7 +545,13 @@ export default function QuizEditor({
                   )}
                 </div>
               )}
-
+              {/* Questions Tab */}
+              {activeTab === "questions" && (
+                <QuizQuestions 
+                  quizId={quiz._id}
+                  onPointsChange={(totalPoints) => handleInputChange("points", totalPoints)}
+                />
+)}
               {/* Restrictions Tab */}
               {activeTab === "restrictions" && (
                 <div>
