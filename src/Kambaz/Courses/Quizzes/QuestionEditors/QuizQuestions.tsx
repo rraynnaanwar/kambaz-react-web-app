@@ -44,11 +44,13 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
         setLoading(true);
         const existingQuestions = await client.getQuestionsByQuiz(quizId);
         
+        console.log("Raw questions from API:", existingQuestions);
+        
         // Ensure proper data structure for each question
         const formattedQuestions = existingQuestions.map((q: any) => {
           const formattedQuestion: Question = {
-            id: q._id || q.id,
-            type: q.type,
+            id: q._id || q.id || `loaded_${Date.now()}`,
+            type: q.type || "MULTIPLE_CHOICE",
             title: q.title || "",
             points: q.points || 1,
             question: q.question || "",
@@ -58,7 +60,7 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
           // Add type-specific fields
           if (q.type === "MULTIPLE_CHOICE" && q.answers) {
             formattedQuestion.answers = q.answers.map((a: any) => ({
-              id: a._id || a.id,
+              id: a._id || a.id || `answer_${Date.now()}`,
               text: a.text || "",
               isCorrect: a.isCorrect || false,
             }));
@@ -72,6 +74,7 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
           return formattedQuestion;
         });
         
+        console.log("Formatted questions:", formattedQuestions);
         setQuestions(formattedQuestions);
       } catch (error) {
         console.error("Error loading questions:", error);
@@ -100,161 +103,6 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
   }, [totalPoints]);
 
   // Define all update functions first
-  const addNewQuestion = useCallback((questionType: Question["type"] = "MULTIPLE_CHOICE") => {
-    const baseQuestion = {
-      id: `q_${Date.now()}`,
-      type: questionType,
-      title: `Question ${questions.length + 1}`,
-      points: 1,
-      question: "",
-      isEditing: true,
-    };
-
-    let newQuestion: Question;
-
-    switch (questionType) {
-      case "TRUE_FALSE":
-        newQuestion = {
-          ...baseQuestion,
-          correctAnswer: true,
-        };
-        break;
-      case "FILL_BLANK":
-        newQuestion = {
-          ...baseQuestion,
-          correctAnswer: "",
-          possibleAnswers: [""],
-        };
-        break;
-      case "MULTIPLE_CHOICE":
-      default:
-        newQuestion = {
-          ...baseQuestion,
-          answers: [
-            { id: `a_${Date.now()}_1`, text: "", isCorrect: true },
-            { id: `a_${Date.now()}_2`, text: "", isCorrect: false },
-            { id: `a_${Date.now()}_3`, text: "", isCorrect: false },
-            { id: `a_${Date.now()}_4`, text: "", isCorrect: false },
-          ],
-        };
-        break;
-    }
-
-    setQuestions(prev => [...prev, newQuestion]);
-  }, [questions.length]);
-
-  // Now define the async functions that depend on the above
-  const saveQuestion = useCallback(async (question: Question) => {
-    if (!quizId) {
-      console.error("No quizId provided");
-      alert("Error: No quiz ID found");
-      return;
-    }
-    
-    // Validate required fields
-    if (!question.question.trim()) {
-      alert("Please enter the question text before saving.");
-      return;
-    }
-    
-    if (question.type === "MULTIPLE_CHOICE") {
-      const validAnswers = question.answers?.filter(a => a.text.trim()) || [];
-      if (validAnswers.length < 2) {
-        alert("Multiple choice questions need at least 2 answers with text.");
-        return;
-      }
-      
-      const hasCorrectAnswer = question.answers?.some(a => a.isCorrect && a.text.trim());
-      if (!hasCorrectAnswer) {
-        alert("Please select a correct answer for this multiple choice question.");
-        return;
-      }
-    }
-    
-    if (question.type === "FILL_BLANK") {
-      const validAnswers = question.possibleAnswers?.filter(a => a.trim()) || [];
-      if (validAnswers.length === 0) {
-        alert("Please enter at least one correct answer for this fill-in-the-blank question.");
-        return;
-      }
-    }
-    
-    // Clean the question data - remove UI-specific fields and ensure proper structure
-    const cleanQuestion: any = {
-      type: question.type,
-      title: question.title,
-      points: question.points,
-      question: question.question,
-    };
-    
-    // Add type-specific fields
-    if (question.type === "MULTIPLE_CHOICE" && question.answers) {
-      // Clean answers and ensure they have proper IDs
-      cleanQuestion.answers = question.answers
-        .filter(a => a.text.trim()) // Only include answers with text
-        .map(a => ({
-          _id: a.id, // Use _id instead of id for MongoDB
-          text: a.text.trim(),
-          isCorrect: a.isCorrect
-        }));
-    } else if (question.type === "TRUE_FALSE") {
-      cleanQuestion.correctAnswer = question.correctAnswer;
-    } else if (question.type === "FILL_BLANK") {
-      cleanQuestion.possibleAnswers = question.possibleAnswers?.filter(a => a.trim()) || [];
-      cleanQuestion.correctAnswer = cleanQuestion.possibleAnswers[0] || "";
-    }
-    
-    console.log("Saving question:", cleanQuestion);
-    console.log("Quiz ID:", quizId);
-    
-    try {
-      if (question.id.startsWith('q_')) {
-        // New question - create it
-        console.log("Creating new question...");
-        const savedQuestion = await client.createQuestion(quizId, cleanQuestion);
-        console.log("Created question response:", savedQuestion);
-        
-        // Update the question with the real ID from the server
-        updateQuestion(question.id, { 
-          id: savedQuestion._id || savedQuestion.id,
-          isEditing: false 
-        });
-      } else {
-        // Existing question - update it
-        console.log("Updating existing question...");
-        const updatedQuestion = await client.updateQuestion(quizId, question.id, cleanQuestion);
-        console.log("Updated question response:", updatedQuestion);
-        toggleEdit(question.id, false);
-      }
-      
-      console.log("Question saved successfully");
-      alert("Question saved successfully!");
-    } catch (error) {
-      console.error("Error saving question:", error);
-    }
-  }, [quizId]);
-
-  const handleDeleteQuestion = useCallback(async (id: string) => {
-    if (!quizId || !id) {
-      console.error("Missing quizId or question id");
-      return;
-    }
-    
-    if (confirm("Are you sure you want to delete this question?")) {
-      try {
-        if (!id.startsWith('q_')) {
-          // Only call API for existing questions
-          await client.deleteQuestion(quizId, id);
-        }
-        deleteQuestion(id);
-        console.log("Question deleted successfully");
-      } catch (error) {
-        console.error("Error deleting question:", error);
-        alert("Failed to delete question. Please try again.");
-      }
-    }
-  }, [quizId]);
-
   const updateQuestion = useCallback((id: string, updates: Partial<Question>) => {
     setQuestions(prev => 
       prev.map(q => q.id === id ? { ...q, ...updates } : q)
@@ -331,8 +179,205 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
     );
   }, []);
 
+  const addNewQuestion = useCallback((questionType: Question["type"] = "MULTIPLE_CHOICE") => {
+    const baseQuestion = {
+      id: `q_${Date.now()}`,
+      type: questionType,
+      title: `Question ${questions.length + 1}`,
+      points: 1,
+      question: "",
+      isEditing: true,
+    };
+
+    let newQuestion: Question;
+
+    switch (questionType) {
+      case "TRUE_FALSE":
+        newQuestion = {
+          ...baseQuestion,
+          correctAnswer: true,
+        };
+        break;
+      case "FILL_BLANK":
+        newQuestion = {
+          ...baseQuestion,
+          correctAnswer: "",
+          possibleAnswers: [""],
+        };
+        break;
+      case "MULTIPLE_CHOICE":
+      default:
+        newQuestion = {
+          ...baseQuestion,
+          answers: [
+            { id: `a_${Date.now()}_1`, text: "", isCorrect: true },
+            { id: `a_${Date.now()}_2`, text: "", isCorrect: false },
+            { id: `a_${Date.now()}_3`, text: "", isCorrect: false },
+            { id: `a_${Date.now()}_4`, text: "", isCorrect: false },
+          ],
+        };
+        break;
+    }
+
+    setQuestions(prev => [...prev, newQuestion]);
+  }, [questions.length]);
+
+  const saveQuestion = useCallback(async (question: Question) => {
+    console.log("saveQuestion called with:", question);
+    
+    if (!quizId) {
+      console.error("No quizId provided");
+      alert("Error: No quiz ID found");
+      return;
+    }
+    
+    if (!question || !question.id) {
+      console.error("Invalid question data:", question);
+      alert("Error: Invalid question data");
+      return;
+    }
+    
+    // Validate required fields
+    if (!question.question.trim()) {
+      alert("Please enter the question text before saving.");
+      return;
+    }
+    
+    if (question.type === "MULTIPLE_CHOICE") {
+      console.log("Validating multiple choice question...");
+      console.log("Question answers:", question.answers);
+      
+      if (!question.answers || !Array.isArray(question.answers)) {
+        alert("Multiple choice questions need answer choices.");
+        return;
+      }
+      
+      const validAnswers = question.answers.filter(a => a && a.text && a.text.trim());
+      console.log("Valid answers count:", validAnswers.length);
+      
+      if (validAnswers.length < 2) {
+        alert("Multiple choice questions need at least 2 answers with text.");
+        return;
+      }
+      
+      const hasCorrectAnswer = validAnswers.some(a => a.isCorrect);
+      console.log("Has correct answer:", hasCorrectAnswer);
+      
+      if (!hasCorrectAnswer) {
+        alert("Please select a correct answer for this multiple choice question.");
+        return;
+      }
+    }
+    
+    if (question.type === "FILL_BLANK") {
+      const validAnswers = question.possibleAnswers?.filter(a => a && a.trim()) || [];
+      if (validAnswers.length === 0) {
+        alert("Please enter at least one correct answer for this fill-in-the-blank question.");
+        return;
+      }
+    }
+    
+    // Clean the question data - remove UI-specific fields and ensure proper structure
+    const cleanQuestion: any = {
+      type: question.type,
+      title: question.title,
+      points: question.points,
+      question: question.question,
+    };
+    
+    // Add type-specific fields with deep cleaning
+    if (question.type === "MULTIPLE_CHOICE" && question.answers) {
+      console.log("Processing multiple choice answers...");
+      // Clean answers and ensure they have proper IDs - use JSON parse/stringify to remove circular refs
+      const cleanAnswers = question.answers
+        .filter(a => a && a.text && a.text.trim()) // Only include answers with text
+        .map(a => ({
+          _id: String(a.id), // Ensure it's a string
+          text: String(a.text).trim(),
+          isCorrect: Boolean(a.isCorrect)
+        }));
+      
+      cleanQuestion.answers = cleanAnswers;
+      console.log("Cleaned answers:", cleanAnswers);
+    } else if (question.type === "TRUE_FALSE") {
+      cleanQuestion.correctAnswer = Boolean(question.correctAnswer);
+    } else if (question.type === "FILL_BLANK") {
+      const validAnswers = question.possibleAnswers?.filter(a => a && a.trim()) || [];
+      cleanQuestion.possibleAnswers = validAnswers.map(a => String(a).trim());
+      cleanQuestion.correctAnswer = cleanQuestion.possibleAnswers[0] || "";
+    }
+    
+    console.log("Final clean question before API call:", JSON.stringify(cleanQuestion, null, 2));
+    
+    try {
+      if (question.id.startsWith('q_')) {
+        // New question - create it
+        console.log("Creating new question...");
+        const savedQuestion = await client.createQuestion(quizId, cleanQuestion);
+        console.log("Created question response:", savedQuestion);
+        
+        // Update the question with the real ID from the server
+        updateQuestion(question.id, { 
+          id: savedQuestion._id || savedQuestion.id,
+          isEditing: false 
+        });
+      } else {
+        // Existing question - update it
+        console.log("Updating existing question...");
+        const updatedQuestion = await client.updateQuestion(quizId, question.id, cleanQuestion);
+        console.log("Updated question response:", updatedQuestion);
+        toggleEdit(question.id, false);
+      }
+      
+      console.log("Question saved successfully");
+      alert("Question saved successfully!");
+    } catch (error) {
+      console.error("Error saving question:", error);
+      console.error("Error details:", error.response?.data || error.message);
+      alert(`Failed to save question: ${error.response?.data?.error || error.message}`);
+    }
+  }, [quizId]);
+
+  const handleDeleteQuestion = useCallback(async (id: string) => {
+    if (!quizId || !id) {
+      console.error("Missing quizId or question id:", { quizId, id });
+      alert("Error: Missing quiz ID or question ID");
+      return;
+    }
+    
+    if (confirm("Are you sure you want to delete this question?")) {
+      try {
+        if (!id.startsWith('q_')) {
+          // Only call API for existing questions
+          await client.deleteQuestion(quizId, id);
+        }
+        deleteQuestion(id);
+        console.log("Question deleted successfully");
+      } catch (error) {
+        console.error("Error deleting question:", error);
+        alert("Failed to delete question. Please try again.");
+      }
+    }
+  }, [quizId]);
+
   const renderQuestionEditor = (question: Question) => {
     console.log("Rendering editor for question:", question);
+    
+    if (!question || !question.id) {
+      console.error("Invalid question data:", question);
+      return (
+        <Card className="mb-3 border-danger">
+          <Card.Body>
+            <div className="text-danger">
+              Error: Invalid question data - missing ID
+            </div>
+            <Button variant="outline-secondary" onClick={() => window.location.reload()}>
+              Refresh Page
+            </Button>
+          </Card.Body>
+        </Card>
+      );
+    }
     
     const commonProps = {
       question,
@@ -341,47 +386,31 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
       onCancel: () => toggleEdit(question.id, false),
     };
 
-    try {
-      switch (question.type) {
-        case "MULTIPLE_CHOICE":
-          return (
-            <MultipleChoiceEditor
-              {...commonProps}
-              onUpdateAnswer={(answerId, text) => updateAnswer(question.id, answerId, text)}
-              onSetCorrectAnswer={(answerId) => setCorrectAnswer(question.id, answerId)}
-              onAddAnswer={() => addAnswer(question.id)}
-              onRemoveAnswer={(answerId) => removeAnswer(question.id, answerId)}
-            />
-          );
-        case "TRUE_FALSE":
-          return <TrueFalseEditor {...commonProps} />;
-        case "FILL_BLANK":
-          return <FillInBlankEditor {...commonProps} />;
-        default:
-          return (
-            <MultipleChoiceEditor
-              {...commonProps}
-              onUpdateAnswer={(answerId, text) => updateAnswer(question.id, answerId, text)}
-              onSetCorrectAnswer={(answerId) => setCorrectAnswer(question.id, answerId)}
-              onAddAnswer={() => addAnswer(question.id)}
-              onRemoveAnswer={(answerId) => removeAnswer(question.id, answerId)}
-            />
-          );
-      }
-    } catch (error) {
-      console.error("Error rendering question editor:", error);
-      return (
-        <Card className="mb-3 border-danger">
-          <Card.Body>
-            <div className="text-danger">
-              Error rendering question editor. Check console for details.
-            </div>
-            <Button onClick={() => toggleEdit(question.id, false)}>
-              Cancel Edit
-            </Button>
-          </Card.Body>
-        </Card>
-      );
+    switch (question.type) {
+      case "MULTIPLE_CHOICE":
+        return (
+          <MultipleChoiceEditor
+            {...commonProps}
+            onUpdateAnswer={(answerId, text) => updateAnswer(question.id, answerId, text)}
+            onSetCorrectAnswer={(answerId) => setCorrectAnswer(question.id, answerId)}
+            onAddAnswer={() => addAnswer(question.id)}
+            onRemoveAnswer={(answerId) => removeAnswer(question.id, answerId)}
+          />
+        );
+      case "TRUE_FALSE":
+        return <TrueFalseEditor {...commonProps} />;
+      case "FILL_BLANK":
+        return <FillInBlankEditor {...commonProps} />;
+      default:
+        return (
+          <MultipleChoiceEditor
+            {...commonProps}
+            onUpdateAnswer={(answerId, text) => updateAnswer(question.id, answerId, text)}
+            onSetCorrectAnswer={(answerId) => setCorrectAnswer(question.id, answerId)}
+            onAddAnswer={() => addAnswer(question.id)}
+            onRemoveAnswer={(answerId) => removeAnswer(question.id, answerId)}
+          />
+        );
     }
   };
 
@@ -464,7 +493,7 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
         {questions.length === 0 ? (
           <div className="text-center py-5 text-muted">
             <p className="mb-3">No questions added yet</p>
-            <Button variant="primary" onClick={addNewQuestion}>
+            <Button variant="primary" onClick={() => addNewQuestion()}>
               <FaPlus className="me-2" />
               Add Your First Question
             </Button>
@@ -485,7 +514,7 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
               <Button
                 variant="outline-primary"
                 size="lg"
-                onClick={addNewQuestion}
+                onClick={() => addNewQuestion()}
                 className="px-4"
               >
                 <FaPlus className="me-2" />
