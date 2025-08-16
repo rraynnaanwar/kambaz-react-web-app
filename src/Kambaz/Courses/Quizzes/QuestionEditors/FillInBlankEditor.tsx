@@ -218,7 +218,7 @@ export default function FillInBlankEditor({
             variant="danger"
             onClick={onSave}
           >
-            {question.id.startsWith('q_') ? 'Save Question' : 'Update Question'}
+            {question?.id?.startsWith('q_') ? 'Save Question' : 'Update Question'}
           </Button>
         </div>
       </Card.Body>

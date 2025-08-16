@@ -43,7 +43,36 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
       try {
         setLoading(true);
         const existingQuestions = await client.getQuestionsByQuiz(quizId);
-        setQuestions(existingQuestions.map((q: any) => ({ ...q, isEditing: false })));
+        
+        // Ensure proper data structure for each question
+        const formattedQuestions = existingQuestions.map((q: any) => {
+          const formattedQuestion: Question = {
+            id: q._id || q.id,
+            type: q.type,
+            title: q.title || "",
+            points: q.points || 1,
+            question: q.question || "",
+            isEditing: false,
+          };
+
+          // Add type-specific fields
+          if (q.type === "MULTIPLE_CHOICE" && q.answers) {
+            formattedQuestion.answers = q.answers.map((a: any) => ({
+              id: a._id || a.id,
+              text: a.text || "",
+              isCorrect: a.isCorrect || false,
+            }));
+          } else if (q.type === "TRUE_FALSE") {
+            formattedQuestion.correctAnswer = q.correctAnswer;
+          } else if (q.type === "FILL_BLANK") {
+            formattedQuestion.possibleAnswers = q.possibleAnswers || [];
+            formattedQuestion.correctAnswer = q.correctAnswer || "";
+          }
+
+          return formattedQuestion;
+        });
+        
+        setQuestions(formattedQuestions);
       } catch (error) {
         console.error("Error loading questions:", error);
       } finally {
@@ -70,6 +99,51 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
     }
   }, [totalPoints]);
 
+  // Define all update functions first
+  const addNewQuestion = useCallback((questionType: Question["type"] = "MULTIPLE_CHOICE") => {
+    const baseQuestion = {
+      id: `q_${Date.now()}`,
+      type: questionType,
+      title: `Question ${questions.length + 1}`,
+      points: 1,
+      question: "",
+      isEditing: true,
+    };
+
+    let newQuestion: Question;
+
+    switch (questionType) {
+      case "TRUE_FALSE":
+        newQuestion = {
+          ...baseQuestion,
+          correctAnswer: true,
+        };
+        break;
+      case "FILL_BLANK":
+        newQuestion = {
+          ...baseQuestion,
+          correctAnswer: "",
+          possibleAnswers: [""],
+        };
+        break;
+      case "MULTIPLE_CHOICE":
+      default:
+        newQuestion = {
+          ...baseQuestion,
+          answers: [
+            { id: `a_${Date.now()}_1`, text: "", isCorrect: true },
+            { id: `a_${Date.now()}_2`, text: "", isCorrect: false },
+            { id: `a_${Date.now()}_3`, text: "", isCorrect: false },
+            { id: `a_${Date.now()}_4`, text: "", isCorrect: false },
+          ],
+        };
+        break;
+    }
+
+    setQuestions(prev => [...prev, newQuestion]);
+  }, [questions.length]);
+
+  // Now define the async functions that depend on the above
   const saveQuestion = useCallback(async (question: Question) => {
     if (!quizId) {
       console.error("No quizId provided");
@@ -157,11 +231,16 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
       alert("Question saved successfully!");
     } catch (error) {
       console.error("Error saving question:", error);
+      console.error("Error details:", error.response?.data || error.message);
+      alert(`Failed to save question: ${error.response?.data?.error || error.message}`);
     }
   }, [quizId]);
 
   const handleDeleteQuestion = useCallback(async (id: string) => {
-    if (!quizId) return;
+    if (!quizId || !id) {
+      console.error("Missing quizId or question id");
+      return;
+    }
     
     if (confirm("Are you sure you want to delete this question?")) {
       try {
@@ -177,49 +256,6 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
       }
     }
   }, [quizId]);
-
-  const addNewQuestion = useCallback((questionType: Question["type"] = "MULTIPLE_CHOICE") => {
-    const baseQuestion = {
-      id: `q_${Date.now()}`,
-      type: questionType,
-      title: `Question ${questions.length + 1}`,
-      points: 1,
-      question: "",
-      isEditing: true,
-    };
-
-    let newQuestion: Question;
-
-    switch (questionType) {
-      case "TRUE_FALSE":
-        newQuestion = {
-          ...baseQuestion,
-          correctAnswer: true,
-        };
-        break;
-      case "FILL_BLANK":
-        newQuestion = {
-          ...baseQuestion,
-          correctAnswer: "",
-          possibleAnswers: [""],
-        };
-        break;
-      case "MULTIPLE_CHOICE":
-      default:
-        newQuestion = {
-          ...baseQuestion,
-          answers: [
-            { id: `a_${Date.now()}_1`, text: "", isCorrect: true },
-            { id: `a_${Date.now()}_2`, text: "", isCorrect: false },
-            { id: `a_${Date.now()}_3`, text: "", isCorrect: false },
-            { id: `a_${Date.now()}_4`, text: "", isCorrect: false },
-          ],
-        };
-        break;
-    }
-
-    setQuestions(prev => [...prev, newQuestion]);
-  }, [questions.length]);
 
   const updateQuestion = useCallback((id: string, updates: Partial<Question>) => {
     setQuestions(prev => 
@@ -298,6 +334,8 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
   }, []);
 
   const renderQuestionEditor = (question: Question) => {
+    console.log("Rendering editor for question:", question);
+    
     const commonProps = {
       question,
       onUpdate: (updates: Partial<Question>) => updateQuestion(question.id, updates),
@@ -305,31 +343,47 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
       onCancel: () => toggleEdit(question.id, false),
     };
 
-    switch (question.type) {
-      case "MULTIPLE_CHOICE":
-        return (
-          <MultipleChoiceEditor
-            {...commonProps}
-            onUpdateAnswer={(answerId, text) => updateAnswer(question.id, answerId, text)}
-            onSetCorrectAnswer={(answerId) => setCorrectAnswer(question.id, answerId)}
-            onAddAnswer={() => addAnswer(question.id)}
-            onRemoveAnswer={(answerId) => removeAnswer(question.id, answerId)}
-          />
-        );
-      case "TRUE_FALSE":
-        return <TrueFalseEditor {...commonProps} />;
-      case "FILL_BLANK":
-        return <FillInBlankEditor {...commonProps} />;
-      default:
-        return (
-          <MultipleChoiceEditor
-            {...commonProps}
-            onUpdateAnswer={(answerId, text) => updateAnswer(question.id, answerId, text)}
-            onSetCorrectAnswer={(answerId) => setCorrectAnswer(question.id, answerId)}
-            onAddAnswer={() => addAnswer(question.id)}
-            onRemoveAnswer={(answerId) => removeAnswer(question.id, answerId)}
-          />
-        );
+    try {
+      switch (question.type) {
+        case "MULTIPLE_CHOICE":
+          return (
+            <MultipleChoiceEditor
+              {...commonProps}
+              onUpdateAnswer={(answerId, text) => updateAnswer(question.id, answerId, text)}
+              onSetCorrectAnswer={(answerId) => setCorrectAnswer(question.id, answerId)}
+              onAddAnswer={() => addAnswer(question.id)}
+              onRemoveAnswer={(answerId) => removeAnswer(question.id, answerId)}
+            />
+          );
+        case "TRUE_FALSE":
+          return <TrueFalseEditor {...commonProps} />;
+        case "FILL_BLANK":
+          return <FillInBlankEditor {...commonProps} />;
+        default:
+          return (
+            <MultipleChoiceEditor
+              {...commonProps}
+              onUpdateAnswer={(answerId, text) => updateAnswer(question.id, answerId, text)}
+              onSetCorrectAnswer={(answerId) => setCorrectAnswer(question.id, answerId)}
+              onAddAnswer={() => addAnswer(question.id)}
+              onRemoveAnswer={(answerId) => removeAnswer(question.id, answerId)}
+            />
+          );
+      }
+    } catch (error) {
+      console.error("Error rendering question editor:", error);
+      return (
+        <Card className="mb-3 border-danger">
+          <Card.Body>
+            <div className="text-danger">
+              Error rendering question editor. Check console for details.
+            </div>
+            <Button onClick={() => toggleEdit(question.id, false)}>
+              Cancel Edit
+            </Button>
+          </Card.Body>
+        </Card>
+      );
     }
   };
 

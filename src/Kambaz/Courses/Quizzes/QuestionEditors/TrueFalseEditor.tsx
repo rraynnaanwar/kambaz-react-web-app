@@ -194,7 +194,7 @@ export default function TrueFalseEditor({
             variant="danger"
             onClick={onSave}
           >
-            {question.id.startsWith('q_') ? 'Save Question' : 'Update Question'}
+            {question?.id?.startsWith('q_') ? 'Save Question' : 'Update Question'}
           </Button>
         </div>
       </Card.Body>

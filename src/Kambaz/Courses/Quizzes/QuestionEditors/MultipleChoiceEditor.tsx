@@ -64,6 +64,7 @@ export default function MultipleChoiceEditor({
                 if (newType === "TRUE_FALSE") {
                   updates.correctAnswer = true;
                   updates.answers = undefined;
+                  updates.possibleAnswers = undefined;
                 } else if (newType === "FILL_BLANK") {
                   updates.correctAnswer = "";
                   updates.answers = undefined;
@@ -74,6 +75,7 @@ export default function MultipleChoiceEditor({
                     { id: `a_${Date.now()}_2`, text: "", isCorrect: false },
                   ];
                   updates.correctAnswer = undefined;
+                  updates.possibleAnswers = undefined;
                 }
                 
                 onUpdate(updates);
@@ -207,7 +209,7 @@ export default function MultipleChoiceEditor({
             variant="danger"
             onClick={onSave}
           >
-            {question.id.startsWith('q_') ? 'Save Question' : 'Update Question'}
+            {question?.id?.startsWith('q_') ? 'Save Question' : 'Update Question'}
           </Button>
         </div>
       </Card.Body>
