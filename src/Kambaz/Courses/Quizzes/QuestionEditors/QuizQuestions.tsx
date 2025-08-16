@@ -231,8 +231,6 @@ export default function QuizQuestions({ quizId, onPointsChange }: QuizQuestionsP
       alert("Question saved successfully!");
     } catch (error) {
       console.error("Error saving question:", error);
-      console.error("Error details:", error.response?.data || error.message);
-      alert(`Failed to save question: ${error.response?.data?.error || error.message}`);
     }
   }, [quizId]);
 
