@@ -63,25 +63,6 @@ export default function QuizEditor({
       };
     }
 
-    // 2. If we have state data, use it
-    if (location.state?.quiz) {
-      const quizData = location.state.quiz;
-      return {
-        ...quizData,
-        courseId: cid,
-        dueDate: quizData.dueDate
-          ? new Date(quizData.dueDate).toISOString().slice(0, 16)
-          : "",
-        availableDate: quizData.availableDate
-          ? new Date(quizData.availableDate).toISOString().slice(0, 16)
-          : "",
-        untilDate: quizData.untilDate
-          ? new Date(quizData.untilDate).toISOString().slice(0, 16)
-          : "",
-        description: quizData.description || "",
-      };
-    }
-
     // 3. Fallback dummy quiz (will be replaced by useEffect if qid exists)
     return {
       _id: qid || "quiz_001",
@@ -117,7 +98,7 @@ useEffect(() => {
       try {
         setLoading(true);
         const fetchedQuiz = await client.getQuizById(qid);
-        
+        console.log(fetchedQuiz);
         // Format dates for datetime-local inputs
         const formattedQuiz = {
           ...fetchedQuiz,

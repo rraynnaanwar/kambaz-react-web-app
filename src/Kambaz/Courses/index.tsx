@@ -10,6 +10,7 @@ import PeopleTable from "./People/Table";
 import Quizzes from "./Quizzes";
 import QuizDetails from "./Quizzes/QuizDetails";
 import QuizEditor from "./Quizzes/QuizEditor";
+import TakeQuiz from "./Quizzes/TakeQuiz";
 
 export default function Courses() {
   const { courses } = useSelector((state: any) => state.courseReducer);
@@ -35,8 +36,9 @@ export default function Courses() {
             <Route path="Assignments" element={<Assignments />} />
             <Route path="Assignments/:aid" element={<AssignmentEditor />} />
             <Route path="Quizzes" element={<Quizzes />} />
-            <Route path="Quizzes/:qid" element={<QuizDetails />} />
+            <Route path="Quizzes/Details/:qid" element={<QuizDetails />} />
             <Route path="Quizzes/Editor/:qid" element={<QuizEditor />} />
+            <Route path="Quizzes/TakeQuiz/:qid" element={<TakeQuiz />} />
             <Route path="People" element={<PeopleTable />} />
           </Routes>
         </div>

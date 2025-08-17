@@ -1,37 +1,63 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useSelector } from "react-redux";
+import * as client from "./client.ts";
 
 export default function QuizDetails() {
   const navigate = useNavigate();
-  const quiz = {
-    _id: "quiz_001",
-    title: "Q1 - HTML",
-    courseId: "CS101",
-    points: 29,
-    numberOfQuestions: 15,
-    quizType: "GRADED_QUIZ",
-    assignmentGroup: "QUIZZES",
-    shuffleAnswers: false,
-    timeLimit: 30,
-    multipleAttempts: false,
-    maxAttempts: 1,
-    showCorrectAnswers: true,
-    oneQuestionAtATime: true,
-    webcamRequired: false,
-    lockQuestionsAfterAnswering: false,
-    dueDate: new Date("2024-09-21T13:00:00"),
-    availableDate: new Date("2024-09-21T11:40:00"),
-    untilDate: new Date("2024-09-21T13:00:00"),
-    published: true,
-    accessCode: "None",
+  const { currentUser } = useSelector((state: any) => state.accountReducer);
+  const isFaculty = currentUser?.role === "FACULTY";
+  const { qid, cid } = useParams();
+
+  const [quiz, setQuiz] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchQuiz = async () => {
+      if (!qid) {
+        setError("No quiz ID provided");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        console.log("Fetching quiz with ID:", qid);
+
+        const fetchedQuiz = await client.getQuizById(qid);
+        console.log("Fetched quiz:", fetchedQuiz);
+
+        if (!fetchedQuiz) {
+          setError("Quiz not found");
+          setLoading(false);
+          return;
+        }
+
+        setQuiz(fetchedQuiz);
+      } catch (err) {
+        console.error("Error fetching quiz:", err);
+        setError("Failed to load quiz");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchQuiz();
+  }, [qid]);
+
+  const editQuiz = () => {
+    console.log("navigating to editor");
+    navigate(`/Kambaz/Courses/${cid}/Quizzes/Editor/${quiz._id}`);
   };
 
-const editQuiz = () => {
-  console.log("navigating to editor");
-  navigate(`../Quizzes/Editor/${quiz._id}`);
-};
+  const navigateToTakeQuiz = () => {
+    console.log("navigating to take quiz");
+    navigate(`/Kambaz/Courses/${cid}/Quizzes/TakeQuiz/${qid}`);
+  };
 
-  const formatDate = (date: Date) =>
+  
+  const formatDate = (date: Date | string) =>
     date
       ? new Intl.DateTimeFormat("en-US", {
           month: "short",
@@ -62,13 +88,75 @@ const editQuiz = () => {
     </div>
   );
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="container my-5">
+        <div className="text-center p-4">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-2">Loading quiz details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="container my-5">
+        <div className="alert alert-danger">
+          <h4>Error</h4>
+          <p>{error}</p>
+          <button
+            className="btn btn-primary"
+            onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes`)}
+          >
+            Back to Quizzes
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // No quiz found
+  if (!quiz) {
+    return (
+      <div className="container my-5">
+        <div className="alert alert-warning">
+          <h4>Quiz Not Found</h4>
+          <p>The requested quiz could not be found.</p>
+          <button
+            className="btn btn-primary"
+            onClick={() => navigate(`/Kambaz/Courses/${cid}/Quizzes`)}
+          >
+            Back to Quizzes
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container my-5">
       {/* Header */}
       <div className="card mb-4 shadow-sm">
         <div className="card-body d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
           <div>
-            <h1 className="card-title">{quiz.title}</h1>
+            <h1
+              className="card-title text-primary"
+              style={{ cursor: "pointer" }}
+              onClick={navigateToTakeQuiz}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.textDecoration = "underline")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.textDecoration = "none")
+              }
+            >
+              {quiz.title}
+            </h1>
             <div className="d-flex flex-wrap gap-2 mt-2 text-muted small">
               <span className="badge bg-primary">
                 {formatQuizType(quiz.quizType)}
@@ -79,11 +167,20 @@ const editQuiz = () => {
             </div>
           </div>
           <div className="mt-3 mt-lg-0 d-flex gap-2">
-            <button className="btn btn-primary" onClick={editQuiz}>
-              {" "}
-              Edit Quiz
+            {/* Only show Edit Quiz button for faculty */}
+            {isFaculty && (
+              <button className="btn btn-primary" onClick={editQuiz}>
+                Edit Quiz
+              </button>
+            )}
+
+            {/* Show different button based on user role */}
+            <button
+              className={`btn ${isFaculty ? "btn-success" : "btn-primary"}`}
+              onClick={navigateToTakeQuiz}
+            >
+              {isFaculty ? "Preview Quiz" : "Take Quiz"}
             </button>
-            <button className="btn btn-success">Preview Quiz</button>
           </div>
         </div>
       </div>
@@ -97,7 +194,7 @@ const editQuiz = () => {
             <div className="card-body">
               <DetailRow
                 label="Assignment Group"
-                value={quiz.assignmentGroup}
+                value={quiz.assignmentGroup || "N/A"}
               />
               <DetailRow
                 label="Shuffle Answers"
@@ -125,7 +222,10 @@ const editQuiz = () => {
                 label="Lock Questions After Answering"
                 value={formatBoolean(quiz.lockQuestionsAfterAnswering)}
               />
-              <DetailRow label="Access code" value={quiz.accessCode} />
+              <DetailRow
+                label="Access code"
+                value={quiz.accessCode || "None"}
+              />
             </div>
           </div>
         </div>
@@ -137,9 +237,15 @@ const editQuiz = () => {
               <h6 className="mb-0">Quick Stats</h6>
             </div>
             <div className="card-body">
-              <DetailRow label="Questions" value={quiz.numberOfQuestions} />
-              <DetailRow label="Total Points" value={quiz.points} />
-              <DetailRow label="Time Limit" value={`${quiz.timeLimit} min`} />
+              <DetailRow
+                label="Questions"
+                value={quiz.numberOfQuestions || 0}
+              />
+              <DetailRow label="Total Points" value={quiz.points || 0} />
+              <DetailRow
+                label="Time Limit"
+                value={`${quiz.timeLimit || 0} min`}
+              />
             </div>
           </div>
 

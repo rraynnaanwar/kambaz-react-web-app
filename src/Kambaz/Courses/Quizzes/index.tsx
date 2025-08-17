@@ -11,6 +11,7 @@ import * as client from "./client";
 
 export default function Quizzes() {
   const { cid } = useParams();
+  const navigate = useNavigate();
   const { currentUser } = useSelector((state: any) => state.accountReducer);
   const isFaculty = currentUser?.role === "FACULTY";
 
@@ -51,11 +52,16 @@ export default function Quizzes() {
     );
   };
 
-const handleQuizDeleted = (deletedQuizId: string) => {
-  setQuizzes((prevQuizzes) =>
-    prevQuizzes.filter((quiz) => quiz._id !== deletedQuizId)
-  );
-};
+  const handleQuizDeleted = (deletedQuizId: string) => {
+    setQuizzes((prevQuizzes) =>
+      prevQuizzes.filter((quiz) => quiz._id !== deletedQuizId)
+    );
+  };
+
+  const navigateToQuizDetails = (quizId: string) => {
+    console.log("Navigating to quiz details for:", quizId);
+    navigate(`/Kambaz/Courses/${cid}/Quizzes/Details/${quizId}`);
+  };
 
   useEffect(() => {
     const fetchQuizzes = async () => {
@@ -82,6 +88,25 @@ const handleQuizDeleted = (deletedQuizId: string) => {
 
     fetchQuizzes();
   }, [cid, isFaculty]); // add isFaculty as dependency
+
+  // Solution 3: Refetch when location changes (user navigates back)
+  useEffect(() => {
+    if (cid && location.pathname === `/Kambaz/Courses/${cid}/Quizzes`) {
+      const refetchQuizzes = async () => {
+        try {
+          console.log("Location changed, refetching quizzes...");
+          const fetchedQuizzes = await client.getQuizzesByCourse(cid);
+          const visibleQuizzes = isFaculty
+            ? fetchedQuizzes
+            : fetchedQuizzes.filter((q: any) => q.published);
+          setQuizzes(visibleQuizzes);
+        } catch (err) {
+          console.error("Error refetching quizzes:", err);
+        }
+      };
+      refetchQuizzes();
+    }
+  }, [location.pathname, cid, isFaculty]); // Refetch when URL changes
 
   if (loading) {
     return (
@@ -134,7 +159,20 @@ const handleQuizDeleted = (deletedQuizId: string) => {
                       <div className="d-flex align-items-center">
                         <FaRegFileAlt className="me-2 text-primary" />
                         <div className="me-auto">
-                          <div className="fw-bold">{quiz.title}</div>
+                          <div
+                            className="fw-bold text-primary"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => navigateToQuizDetails(quiz._id)}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.textDecoration =
+                                "underline")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.textDecoration = "none")
+                            }
+                          >
+                            {quiz.title}
+                          </div>
                           <div
                             className={`small ${
                               getQuizAvailability(quiz).className
@@ -144,11 +182,11 @@ const handleQuizDeleted = (deletedQuizId: string) => {
                             {getQuizAvailability(quiz).status}
                           </div>
                         </div>
- <QuizControlButtons
-  quiz={quiz}
-  onQuizUpdate={handleQuizUpdate}
-  onQuizDeleted={handleQuizDeleted}
-/>
+                        <QuizControlButtons
+                          quiz={quiz}
+                          onQuizUpdate={handleQuizUpdate}
+                          onQuizDeleted={handleQuizDeleted}
+                        />
                       </div>
                       <div className="mt-1 text-muted small">
                         {quiz.totalQuestions ||
