@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { FormControl, InputGroup, ListGroup } from "react-bootstrap";
 import { FaSearch } from "react-icons/fa";
@@ -12,6 +12,7 @@ import * as client from "./client";
 export default function Quizzes() {
   const { cid } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser } = useSelector((state: any) => state.accountReducer);
   const isFaculty = currentUser?.role === "FACULTY";
 
@@ -63,6 +64,13 @@ export default function Quizzes() {
     navigate(`/Kambaz/Courses/${cid}/Quizzes/Details/${quizId}`);
   };
 
+  const canAccessQuiz = (quiz: any) => {
+    if (isFaculty) return true; // Faculty can always access
+
+    const availability = getQuizAvailability(quiz);
+    return availability.status !== "Closed";
+  };
+
   useEffect(() => {
     const fetchQuizzes = async () => {
       try {
@@ -88,6 +96,34 @@ export default function Quizzes() {
 
     fetchQuizzes();
   }, [cid, isFaculty]); // add isFaculty as dependency
+
+  // Add this new useEffect to refetch when navigating back
+  useEffect(() => {
+    const handleFocus = () => {
+      // Refetch quizzes when window regains focus or user navigates back
+      if (cid) {
+        const fetchQuizzes = async () => {
+          try {
+            const fetchedQuizzes = await client.getQuizzesByCourse(cid);
+            const visibleQuizzes = isFaculty
+              ? fetchedQuizzes
+              : fetchedQuizzes.filter((q: any) => q.published);
+            setQuizzes(visibleQuizzes);
+          } catch (err) {
+            console.error("Error refetching quizzes:", err);
+          }
+        };
+        fetchQuizzes();
+      }
+    };
+
+    // Listen for when user navigates back to this page
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [cid, isFaculty]);
 
   // Solution 3: Refetch when location changes (user navigates back)
   useEffect(() => {
@@ -130,9 +166,7 @@ export default function Quizzes() {
           </InputGroup.Text>
           <FormControl placeholder="Search quizzes..." id="wd-search-quizzes" />
         </InputGroup>
-        <div className="ms-auto">
-          <QuizModulesControls />
-        </div>
+        <div className="ms-auto">{isFaculty && <QuizModulesControls />}</div>
       </div>
 
       {error && <div className="alert alert-warning mb-3">{error}.</div>}
@@ -160,19 +194,33 @@ export default function Quizzes() {
                         <FaRegFileAlt className="me-2 text-primary" />
                         <div className="me-auto">
                           <div
-                            className="fw-bold text-primary"
-                            style={{ cursor: "pointer" }}
-                            onClick={() => navigateToQuizDetails(quiz._id)}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.textDecoration =
-                                "underline")
+                            className={`fw-bold ${
+                              canAccessQuiz(quiz)
+                                ? "text-primary"
+                                : "text-muted"
+                            }`}
+                            style={{
+                              cursor: canAccessQuiz(quiz)
+                                ? "pointer"
+                                : "default",
+                            }}
+                            onClick={() =>
+                              canAccessQuiz(quiz) &&
+                              navigateToQuizDetails(quiz._id)
                             }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.textDecoration = "none")
-                            }
+                            onMouseEnter={(e) => {
+                              if (canAccessQuiz(quiz))
+                                e.currentTarget.style.textDecoration =
+                                  "underline";
+                            }}
+                            onMouseLeave={(e) => {
+                              if (canAccessQuiz(quiz))
+                                e.currentTarget.style.textDecoration = "none";
+                            }}
                           >
                             {quiz.title}
                           </div>
+
                           <div
                             className={`small ${
                               getQuizAvailability(quiz).className
@@ -182,11 +230,13 @@ export default function Quizzes() {
                             {getQuizAvailability(quiz).status}
                           </div>
                         </div>
-                        <QuizControlButtons
-                          quiz={quiz}
-                          onQuizUpdate={handleQuizUpdate}
-                          onQuizDeleted={handleQuizDeleted}
-                        />
+                        {isFaculty && (
+                          <QuizControlButtons
+                            quiz={quiz}
+                            onQuizUpdate={handleQuizUpdate}
+                            onQuizDeleted={handleQuizDeleted}
+                          />
+                        )}
                       </div>
                       <div className="mt-1 text-muted small">
                         {quiz.totalQuestions ||
