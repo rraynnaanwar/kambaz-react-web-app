@@ -14,7 +14,7 @@ export default function Labs() {
     <Provider store={store}>
     <div>
       <h1>Labs</h1>
-      <h2> Rayn Anwar</h2>
+      <h2> Rayn Anwar and Ben Yoon</h2>
       <h3> Section: 60924</h3>
       <TOC />
       <Routes>

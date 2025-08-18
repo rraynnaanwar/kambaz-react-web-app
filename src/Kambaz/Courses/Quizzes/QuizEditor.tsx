@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import * as client from "./client";
 import QuizQuestions from "./QuestionEditors/QuizQuestions";
 
-// Move FormGroup outside to prevent recreating on every render
+
 const FormGroup = ({
   label,
   children,
@@ -21,7 +21,7 @@ const FormGroup = ({
   </div>
 );
 
-// Define props interface
+
 interface QuizEditorProps {
   initialQuiz?: any;
   onSave?: (quiz: any) => void;
@@ -43,9 +43,7 @@ export default function QuizEditor({
   const [activeTab, setActiveTab] = useState("details");
   const [loading, setLoading] = useState(false);
 
-  // Initialize with fallback dummy quiz first
   const [quiz, setQuiz] = useState(() => {
-    // 1. Use initialQuiz prop if provided
     if (initialQuiz) {
       return {
         ...initialQuiz,
@@ -63,7 +61,6 @@ export default function QuizEditor({
       };
     }
 
-    // 3. Fallback dummy quiz (will be replaced by useEffect if qid exists)
     return {
       _id: qid || "quiz_001",
       title: isNewQuiz ? "New Quiz" : "Q1 - HTML",
@@ -89,20 +86,18 @@ export default function QuizEditor({
     };
   });
 
-  // Fetch quiz data if we have qid but no location state and no initialQuiz prop
 useEffect(() => {
   const fetchQuizData = async () => {
-    // Only fetch if we don't have initialQuiz prop, location state, and we have a quiz ID
-    // BUT NOT if qid is "new" (for new quiz creation)
+
     if (!initialQuiz && !location.state?.quiz && qid && qid !== "new") {
       try {
         setLoading(true);
         const fetchedQuiz = await client.getQuizById(qid);
         console.log(fetchedQuiz);
-        // Format dates for datetime-local inputs
+
         const formattedQuiz = {
           ...fetchedQuiz,
-          courseId: cid, // Ensure courseId is set from URL params
+          courseId: cid,
           dueDate: fetchedQuiz.dueDate
             ? new Date(fetchedQuiz.dueDate).toISOString().slice(0, 16)
             : "",
@@ -118,7 +113,7 @@ useEffect(() => {
         setQuiz(formattedQuiz);
       } catch (error) {
         console.error("Error fetching quiz:", error);
-        // Keep the fallback dummy quiz if fetch fails
+
       } finally {
         setLoading(false);
       }
@@ -128,7 +123,6 @@ useEffect(() => {
   fetchQuizData();
 }, [qid, cid, location.state, initialQuiz]);
 
-  // Use useCallback to prevent function recreation on every render
   const handleInputChange = useCallback((field: string, value: any) => {
     setQuiz((prev: any) => ({
       ...prev,
@@ -141,13 +135,13 @@ const handleSubmit = useCallback(async () => {
     console.log("Saving quiz:", quiz);
     
     if (qid === "new" || isNewQuiz) {
-      // Creating new quiz
+
       const savedQuiz = await client.createQuiz(quiz);
       alert("Quiz created successfully!");
       navigate(`/Kambaz/Courses/${cid}/Quizzes/${savedQuiz._id || savedQuiz.id}`);
     } else {
-      // Updating existing quiz
-      await client.updateQuiz(quiz._id, quiz); // You'll need to add this function to client.ts
+
+      await client.updateQuiz(quiz._id, quiz); 
       alert("Quiz updated successfully!");
       navigate(-1);
     }
@@ -159,10 +153,9 @@ const handleSubmit = useCallback(async () => {
 
 
   const handleCancel = useCallback(() => {
-    navigate(-1); // Go back to quiz details
+    navigate(-1); 
   }, [navigate]);
 
-  // Helper function for numeric inputs with better validation
   const handleNumericInputChange = useCallback((field: string, value: string, min: number = 0) => {
     if (value === '') {
       handleInputChange(field, '');
@@ -180,7 +173,7 @@ const handleSubmit = useCallback(async () => {
     }
   }, [handleInputChange]);
 
-  // Show loading state while fetching quiz data
+
   if (loading) {
     return (
       <div className="container my-4">
@@ -614,10 +607,7 @@ const handleSubmit = useCallback(async () => {
             </div>
           </div>
         </div>
-
-        {/* Sidebar */}
         <div className="col-lg-4">
-          {/* Due Dates */}
           <div className="card shadow-sm mb-4">
             <div className="card-header">
               <h6 className="mb-0">Due Dates</h6>
@@ -656,7 +646,6 @@ const handleSubmit = useCallback(async () => {
             </div>
           </div>
 
-          {/* Publish Settings */}
           <div className="card shadow-sm">
             <div className="card-header">
               <h6 className="mb-0">Publish Settings</h6>
@@ -683,7 +672,6 @@ const handleSubmit = useCallback(async () => {
             </div>
           </div>
 
-          {/* Quick Preview */}
           <div className="card shadow-sm mt-4">
             <div className="card-header">
               <h6 className="mb-0">Quick Preview</h6>
