@@ -162,6 +162,24 @@ const handleSubmit = useCallback(async () => {
     navigate(-1); // Go back to quiz details
   }, [navigate]);
 
+  // Helper function for numeric inputs with better validation
+  const handleNumericInputChange = useCallback((field: string, value: string, min: number = 0) => {
+    if (value === '') {
+      handleInputChange(field, '');
+    } else {
+      const numValue = parseInt(value);
+      if (!isNaN(numValue) && numValue >= min) {
+        handleInputChange(field, numValue);
+      }
+    }
+  }, [handleInputChange]);
+
+  const handleNumericInputBlur = useCallback((field: string, value: string, min: number = 0, defaultValue: number = min) => {
+    if (value === '' || parseInt(value) < min || isNaN(parseInt(value))) {
+      handleInputChange(field, defaultValue);
+    }
+  }, [handleInputChange]);
+
   // Show loading state while fetching quiz data
   if (loading) {
     return (
@@ -366,12 +384,12 @@ const handleSubmit = useCallback(async () => {
                         <input
                           type="number"
                           className="form-control"
-                          value={quiz.points || 0}
+                          value={quiz.points}
                           onChange={(e) =>
-                            handleInputChange(
-                              "points",
-                              parseInt(e.target.value) || 0
-                            )
+                            handleNumericInputChange("points", e.target.value, 0)
+                          }
+                          onBlur={(e) =>
+                            handleNumericInputBlur("points", e.target.value, 0, 0)
                           }
                           min="0"
                         />
@@ -382,12 +400,12 @@ const handleSubmit = useCallback(async () => {
                         <input
                           type="number"
                           className="form-control"
-                          value={quiz.numberOfQuestions || 1}
+                          value={quiz.numberOfQuestions}
                           onChange={(e) =>
-                            handleInputChange(
-                              "numberOfQuestions",
-                              parseInt(e.target.value) || 1
-                            )
+                            handleNumericInputChange("numberOfQuestions", e.target.value, 1)
+                          }
+                          onBlur={(e) =>
+                            handleNumericInputBlur("numberOfQuestions", e.target.value, 1, 1)
                           }
                           min="1"
                         />
@@ -398,12 +416,12 @@ const handleSubmit = useCallback(async () => {
                         <input
                           type="number"
                           className="form-control"
-                          value={quiz.timeLimit || 30}
+                          value={quiz.timeLimit}
                           onChange={(e) =>
-                            handleInputChange(
-                              "timeLimit",
-                              parseInt(e.target.value) || 1
-                            )
+                            handleNumericInputChange("timeLimit", e.target.value, 1)
+                          }
+                          onBlur={(e) =>
+                            handleNumericInputBlur("timeLimit", e.target.value, 1, 30)
                           }
                           min="1"
                         />
@@ -513,14 +531,29 @@ const handleSubmit = useCallback(async () => {
                         type="number"
                         className="form-control"
                         value={quiz.maxAttempts}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "maxAttempts",
-                            parseInt(e.target.value) || 1
-                          )
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Allow empty string for intermediate typing states
+                          if (value === '') {
+                            handleInputChange("maxAttempts", '');
+                          } else {
+                            const numValue = parseInt(value);
+                            // Only update if it's a valid number >= 1
+                            if (!isNaN(numValue) && numValue >= 1) {
+                              handleInputChange("maxAttempts", numValue);
+                            }
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // On blur, ensure we have a valid number >= 1
+                          const value = e.target.value;
+                          if (value === '' || parseInt(value) < 1 || isNaN(parseInt(value))) {
+                            handleInputChange("maxAttempts", 1);
+                          }
+                        }}
                         min="1"
                         max="10"
+                        placeholder="1"
                       />
                     </FormGroup>
                   )}

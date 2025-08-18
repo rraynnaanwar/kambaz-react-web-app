@@ -105,7 +105,7 @@ export default function MultipleChoiceEditor({
         {/* Instructional Text */}
         <div className="mb-4 p-3 bg-light rounded">
           <small className="text-muted">
-            Enter your question and multiple answers, then select the one correct answer.
+            Enter your question and multiple answers, then click on an answer to mark it as correct.
           </small>
         </div>
 
@@ -152,21 +152,29 @@ export default function MultipleChoiceEditor({
           <Form.Label className="fw-semibold h6">Answers:</Form.Label>
           {question.answers?.map((answer, index) => (
             <div key={answer.id} className="d-flex align-items-center mb-3">
-              <div className="me-3" style={{ minWidth: '140px' }}>
+              <div 
+                className="me-3" 
+                style={{ minWidth: '140px', cursor: 'pointer' }}
+                onClick={() => onSetCorrectAnswer(answer.id)}
+                title="Click to set as correct answer"
+              >
                 {answer.isCorrect ? (
                   <span className="badge bg-success d-flex align-items-center justify-content-center py-1">
                     <span className="me-1">✓</span>
                     Correct Answer
                   </span>
                 ) : (
-                  <span className="text-muted">Possible Answer</span>
+                  <span className="badge bg-light text-dark d-flex align-items-center justify-content-center py-1 border">
+                    <span className="me-1">○</span>
+                    Click to Select
+                  </span>
                 )}
               </div>
               <Form.Control
                 type="text"
                 value={answer.text}
                 onChange={(e) => onUpdateAnswer(answer.id, e.target.value)}
-                placeholder={`${4 - index}`}
+                placeholder={`Answer ${index + 1}`}
                 className="flex-grow-1 me-3 border-2"
               />
               {question.answers && question.answers.length > 2 && (

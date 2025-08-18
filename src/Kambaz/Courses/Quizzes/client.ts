@@ -55,14 +55,14 @@ export const updateQuiz = async (quiz_id: string, quiz: any) => {
 // Question Management Functions
 export const getQuestionsByQuiz = async (quiz_id: string) => {
   const response = await axiosWithCredentials.get(
-    `${QUIZZES_API}/${quiz_id}/questions`
+    `${QUIZZES_API}/courses/${quiz_id}/questions`
   );
   return response.data;
 };
 
 export const createQuestion = async (quiz_id: string, question: any) => {
   const response = await axiosWithCredentials.post(
-    `${QUIZZES_API}/${quiz_id}/questions`,
+    `${QUIZZES_API}/courses/${quiz_id}/questions`,
     { question }
   );
   return response.data;
@@ -70,7 +70,7 @@ export const createQuestion = async (quiz_id: string, question: any) => {
 
 export const updateQuestion = async (quiz_id: string, question_id: string, question: any) => {
   const response = await axiosWithCredentials.put(
-    `${QUIZZES_API}/${quiz_id}/questions/${question_id}`,
+    `${QUIZZES_API}/courses/${quiz_id}/questions/${question_id}`,
     { question }
   );
   return response.data;
@@ -78,7 +78,7 @@ export const updateQuestion = async (quiz_id: string, question_id: string, quest
 
 export const deleteQuestion = async (quiz_id: string, question_id: string) => {
   const response = await axiosWithCredentials.delete(
-    `${QUIZZES_API}/${quiz_id}/questions/${question_id}`
+    `${QUIZZES_API}/courses/${quiz_id}/questions/${question_id}`
   );
   return response.data;
 };
